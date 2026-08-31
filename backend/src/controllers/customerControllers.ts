@@ -3,12 +3,13 @@ import prisma from '../libs/prisma';
 
 export const createCustomer = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { name, email, phone } = req.body;
+    const { name, email, phone, password } = req.body;
 
     const newCustomer = await prisma.customers.create({
       data: {
         name: name as string,
         email: email as string,
+        password: password, 
         phone: Number(phone),
       },
       include: {

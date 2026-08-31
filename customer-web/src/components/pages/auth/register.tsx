@@ -19,6 +19,7 @@ const bgImages = [
 const Register = () => {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
@@ -47,17 +48,23 @@ const Register = () => {
       return
     }
 
+    const phoneDigits = phone.replace(/\D/g, '')
+    if (!phoneDigits) {
+      setError('Phone number is required.')
+      return
+    }
+
     setLoading(true)
 
     try {
-      await useAuth.register(name, email, password)
+      // schema uses Int — send digits only as number
+      await useAuth.register(name, email, password, Number(phoneDigits))
       navigate('/login', { replace: true })
-      // Or auto-login then navigate('/dashboard') if your API supports it
     } catch (err: unknown) {
       if (axios.isAxiosError(err)) {
-        setError(err.response?.data?.message || 'Login failed.')
+        setError(err.response?.data?.message || 'Registration failed.')
       } else {
-        setError('Login failed.')
+        setError('Registration failed.')
       }
     } finally {
       setLoading(false)
@@ -66,7 +73,6 @@ const Register = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
-      {/* Background images */}
       {bgImages.map((img, i) => (
         <div
           key={i}
@@ -80,15 +86,12 @@ const Register = () => {
 
       <div className="absolute inset-0 bg-black/60" />
 
-      {/* Register card */}
       <div className="relative z-10 w-full max-w-md px-4 py-8">
         <div className="card bg-base-100/95 backdrop-blur shadow-2xl">
           <div className="card-body p-6 sm:p-8">
             <div className="text-center mb-6">
               <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-primary text-primary-content flex items-center justify-center mx-auto mb-3 shadow-lg">
-                <span className="material-icons text-2xl sm:text-3xl">
-                  directions_car
-                </span>
+                <span className="material-icons text-2xl sm:text-3xl">directions_car</span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-bold">WASHINGTON</h1>
               <p className="text-sm opacity-60 mt-1">Create your account</p>
@@ -96,7 +99,7 @@ const Register = () => {
 
             {error && (
               <div role="alert" className="alert alert-error text-sm mb-4">
-                <span className="material-symbols-outlined">error</span>
+                <span className="material-icons text-lg">error</span>
                 <span>{error}</span>
               </div>
             )}
@@ -126,6 +129,20 @@ const Register = () => {
                   placeholder="you@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text font-semibold">Phone</span>
+                </label>
+                <input
+                  type="tel"
+                  className="input input-bordered rounded-xl"
+                  placeholder="08xxxxxxxxxx"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
                   required
                 />
               </div>
@@ -185,7 +202,6 @@ const Register = () => {
           </div>
         </div>
 
-        {/* Indicators */}
         <div className="flex justify-center gap-2 mt-5">
           {bgImages.map((_, i) => (
             <button

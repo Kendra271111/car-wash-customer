@@ -68,6 +68,9 @@ model customers {
   name      String
   email     String     @unique
   phone     Int
+  password  String?
+  pfp       String?
+  role      String   @default("USER")
   createdAt DateTime   @default(now())
   orders    orders[]
   vehicles  vehicles[]

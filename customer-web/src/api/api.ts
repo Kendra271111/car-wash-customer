@@ -1,6 +1,4 @@
 import axios from 'axios'
-import { useNavigate } from 'react-router' // only if you call logout from a component
-// For non-component usage, navigate via window or a shared navigate helper
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
 
@@ -10,8 +8,6 @@ export const api = axios.create({
     'Content-Type': 'application/json',
   },
 })
-
-// ─── Token / User helpers (localStorage instead of SecureStore) ───
 
 export const getToken = (): string | null => {
   return localStorage.getItem('token')
@@ -32,8 +28,6 @@ export const clearAuth = (): void => {
   localStorage.removeItem('user')
 }
 
-// ─── Interceptors ───
-
 api.interceptors.request.use((config) => {
   const token = getToken()
   if (token) {
@@ -52,8 +46,6 @@ api.interceptors.response.use(
   }
 )
 
-// ─── Logout ───
-
 let isLoggingOut = false
 
 export async function logout() {
@@ -63,7 +55,6 @@ export async function logout() {
   try {
     clearAuth()
   } finally {
-    // Soft redirect — works outside React components
     window.location.href = '/login'
     isLoggingOut = false
   }
