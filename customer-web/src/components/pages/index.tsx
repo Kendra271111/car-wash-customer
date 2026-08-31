@@ -1,9 +1,13 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
-import useAuth from '../../hooks/useAuth' // adjust path
- // adjust path
-import { logout } from '../../api/api' // adjust path
-import useOrders, { statusColors, statusLabels, type Order, type OrderStatus } from '../../hooks/useOrder'
+import useAuth from '../../hooks/useAuth'
+import { logout } from '../../api/api'
+import useOrders, {
+  statusColors,
+  statusLabels,
+  type Order,
+  type OrderStatus,
+} from '../../hooks/useOrder'
 
 const formatRp = (amount: number) =>
   new Intl.NumberFormat('id-ID', {
@@ -19,14 +23,15 @@ const orderTotal = (order: Order) =>
   )
 
 const serviceSummary = (order: Order) => {
-  const items = order.order_items || []
-  if (!items.length) return 'No services'
-  return items.length === 1 ? '1 service' : `${items.length} services`
+  const qty =
+    order.order_items?.reduce((sum, item) => sum + (item.qty || 0), 0) || 0
+  if (!qty) return 'No services'
+  return qty === 1 ? '1 service' : `${qty} services`
 }
 
 const vehicleLabel = (order: Order) => {
   const v = order.vehicle
-  if (!v) return '—'
+  if (!v) return order.vehicleId ? `Vehicle #${order.vehicleId}` : '—'
   const plate = v.plateNumber || ''
   const name = [v.brand, v.model].filter(Boolean).join(' ') || v.name || ''
   return [plate, name].filter(Boolean).join(' · ') || `Vehicle #${v.id}`
@@ -52,7 +57,8 @@ const statusBadge = (status?: string) => {
 
 const Index = () => {
   const user = useAuth.getUser()
-  const customerName = user?.name || 'Customer'
+  const customerName = user?.name ?? 'Customer'
+  const customerId = typeof user?.id === 'number' ? user.id : null
 
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
@@ -66,7 +72,7 @@ const Index = () => {
       setError('')
       try {
         const data = await useOrders.fetchOrders()
-        if (!cancelled) setOrders(data)
+        if (!cancelled) setOrders(Array.isArray(data) ? data : [])
       } catch {
         if (!cancelled) setError('Failed to load orders.')
       } finally {
@@ -80,29 +86,36 @@ const Index = () => {
     }
   }, [])
 
-  const stats = useMemo(() => {
-    const computed = useOrders.computeStats(orders)
-    const active = computed.PENDING + computed.PROCESSING
-    return {
-      vehicles: '—', // wire useVehicles later
-      active,
-      completed: computed.COMPLETED,
-    }
-  }, [orders])
+  const mine =
+    customerId === null
+      ? orders
+      : orders.filter((o) => o.customerId === customerId)
 
-  const recentOrders = useMemo(() => orders.slice(0, 5), [orders])
+  const computed = useOrders.computeStats(mine)
+  const stats = {
+    vehicles: '—',
+    active: computed.PENDING + computed.PROCESSING,
+    completed: computed.COMPLETED,
+  }
+
+  const myRecentOrders = [...mine]
+    .sort((a, b) => {
+      const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0
+      const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0
+      return tb - ta
+    })
+    .slice(0, 3)
 
   const handleLogout = () => {
     logout()
   }
 
   return (
-    <div className="min-h-screen bg-base-200">
-      {/* Top bar */}
-      <div className="navbar bg-base-100 border-b border-base-300 px-4 sm:px-6 sticky top-0 z-20">
+    <div className="min-h-screen bg-300">
+      <div className="navbar bg-200 border-b border-base-300 px-4 sm:px-6 sticky top-0 z-20">
         <div className="flex-1">
           <Link to="/dashboard" className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-lg bg-primary text-primary-content flex items-center justify-center">
+            <div className="w-9 h-9 rounded-lg bg-teal-600 text-white flex items-center justify-center">
               <span className="material-icons text-xl">directions_car</span>
             </div>
             <span className="font-bold text-lg hidden sm:inline">WASHINGTON</span>
@@ -117,13 +130,13 @@ const Index = () => {
           </Link>
           <div className="dropdown dropdown-end">
             <div tabIndex={0} role="button" className="btn btn-ghost btn-circle avatar placeholder">
-              <div className="bg-primary text-primary-content rounded-full w-9">
+              <div className="bg-teal-600 text-white rounded-full w-9">
                 <span className="text-sm">{customerName.charAt(0).toUpperCase()}</span>
               </div>
             </div>
             <ul
               tabIndex={0}
-              className="dropdown-content menu bg-base-100 rounded-box z-30 w-48 p-2 shadow-lg border border-base-300"
+              className="dropdown-content menu bg-gradient-to-br rounded-box z-30 w-48 p-2 shadow-lg border border-base-300"
             >
               <li className="menu-title px-3 pt-1 pb-0">
                 <span className="text-xs opacity-60">Signed in as</span>
@@ -140,6 +153,9 @@ const Index = () => {
                 <Link to="/orders">My Orders</Link>
               </li>
               <li>
+                <Link to="/history">My History</Link>
+              </li>
+              <li>
                 <button type="button" onClick={handleLogout}>
                   Logout
                 </button>
@@ -150,18 +166,17 @@ const Index = () => {
       </div>
 
       <div className="p-4 sm:p-6 max-w-3xl mx-auto">
-        {/* Welcome */}
-        <div className="card bg-primary text-primary-content shadow-md mb-6 overflow-hidden">
+        <div className="card bg-teal-600 text-white shadow-md mb-6 overflow-hidden">
           <div className="card-body p-5 sm:p-6">
             <p className="text-sm opacity-80">Welcome back</p>
-            <h1 className="text-2xl sm:text-3xl font-bold">{customerName} 👋</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold">{customerName}</h1>
             <p className="text-sm opacity-90 mt-1 max-w-md">
               Book a wash, track your order, and manage your vehicles in one place.
             </p>
             <div className="card-actions mt-4 flex flex-wrap gap-2">
               <Link
                 to="/orders/create"
-                className="btn btn-sm sm:btn-md bg-base-100 text-base-content border-0 rounded-xl"
+                className="btn btn-sm sm:btn-md bg-white text-teal-800 border-0 rounded-xl hover:bg-teal-50"
               >
                 <span className="material-icons text-lg">add</span>
                 Book a Wash
@@ -177,7 +192,6 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Stats */}
         <div className="grid grid-cols-3 gap-3 mb-6">
           {[
             {
@@ -199,9 +213,9 @@ const Index = () => {
               icon: 'check_circle',
             },
           ].map((s) => (
-            <div key={s.label} className="card bg-base-100 shadow-sm border border-base-300">
+            <div key={s.label} className="card bg-100 shadow-sm border border-base-300">
               <div className="card-body p-3 sm:p-4 items-center text-center">
-                <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                <div className="w-9 h-9 rounded-lg bg-teal-600/10 text-teal-600 flex items-center justify-center">
                   <span className="material-icons text-xl">{s.icon}</span>
                 </div>
                 <p className="text-xl sm:text-2xl font-bold mt-1">{s.value}</p>
@@ -212,11 +226,10 @@ const Index = () => {
           ))}
         </div>
 
-        {/* Recent orders */}
-        <div className="card bg-base-100 shadow-sm border border-base-300">
+        <div className="card bg-200 shadow-sm border border-base-300">
           <div className="card-body p-4 sm:p-5">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="font-bold text-lg">My Orders</h2>
+              <h2 className="font-bold text-lg">Recent Orders</h2>
               <Link to="/orders" className="btn btn-ghost btn-xs sm:btn-sm">
                 See all
               </Link>
@@ -224,7 +237,7 @@ const Index = () => {
 
             {loading && (
               <div className="flex justify-center py-8">
-                <span className="loading loading-spinner loading-md text-primary" />
+                <span className="loading loading-spinner loading-md text-teal-600" />
               </div>
             )}
 
@@ -235,23 +248,23 @@ const Index = () => {
               </div>
             )}
 
-            {!loading && !error && recentOrders.length === 0 && (
+            {!loading && !error && myRecentOrders.length === 0 && (
               <div className="text-center py-8 opacity-60 text-sm">
                 <span className="material-icons text-3xl mb-2 opacity-40">receipt_long</span>
                 <p>No orders yet.</p>
-                <Link to="/orders/create" className="btn btn-primary btn-sm rounded-xl mt-3">
+                <Link to="/orders/create" className="btn bg-teal-600 hover:bg-teal-700 text-white border-0 btn-sm rounded-xl mt-3">
                   Book a Wash
                 </Link>
               </div>
             )}
 
-            {!loading && !error && recentOrders.length > 0 && (
+            {!loading && !error && myRecentOrders.length > 0 && (
               <div className="flex flex-col gap-3">
-                {recentOrders.map((o) => (
+                {myRecentOrders.map((o) => (
                   <Link
                     key={o.id}
                     to={`/orders/${o.id}`}
-                    className="flex items-start justify-between gap-3 p-3 rounded-xl bg-base-200/50 border border-base-300 hover:border-primary/40 transition-colors"
+                    className="flex items-start justify-between gap-3 p-3 rounded-xl bg-gradient-to-br border border-base-300 hover:border-teal-500/50 transition-colors"
                   >
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -275,8 +288,8 @@ const Index = () => {
           </div>
         </div>
 
-        <div className="mt-6 p-4 rounded-xl bg-base-100 border border-base-300 text-sm opacity-70 flex gap-3">
-          <span className="material-icons text-primary shrink-0">info</span>
+        <div className="mt-6 p-4 rounded-xl bg-gradient-to-br border border-base-300 text-sm opacity-70 flex gap-3">
+          <span className="material-icons text-teal-600 shrink-0">info</span>
           <p>
             Add your vehicle first, then tap <strong>Book a Wash</strong> to choose services and
             pay.
