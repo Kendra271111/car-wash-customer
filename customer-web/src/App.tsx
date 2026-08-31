@@ -3,6 +3,8 @@ import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import Login from './components/pages/auth/login'
 import Index from './components/pages'
 import Register from './components/pages/auth/register'
+import Profile from './components/pages/profile/profile'
+import EditProfile from './components/pages/profile/editProfile'
 
 const RequireAuth = () => {
   const token = localStorage.getItem('token')
@@ -28,6 +30,8 @@ function App() {
             <Route element={<RequireAuth />}>
               <Route>
                 <Route path="/dashboard" element={<Index />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/profile/edit" element={<EditProfile />} />
               </Route>
             </Route>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />

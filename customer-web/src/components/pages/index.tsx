@@ -66,7 +66,6 @@ const Index = () => {
 
   useEffect(() => {
     let cancelled = false
-
     const load = async () => {
       setLoading(true)
       setError('')
@@ -79,7 +78,6 @@ const Index = () => {
         if (!cancelled) setLoading(false)
       }
     }
-
     load()
     return () => {
       cancelled = true
@@ -106,196 +104,236 @@ const Index = () => {
     })
     .slice(0, 3)
 
-  const handleLogout = () => {
-    logout()
-  }
-
   return (
-    <div className="min-h-screen bg-300">
-      <div className="navbar bg-200 border-b border-base-300 px-4 sm:px-6 sticky top-0 z-20">
-        <div className="flex-1">
-          <Link to="/dashboard" className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-lg bg-teal-600 text-white flex items-center justify-center">
+    <div className="min-h-screen bg-slate-950 text-slate-100">
+      {/* Navbar — fixed structure */}
+      <header className="sticky top-0 z-30 border-b border-slate-800 bg-slate-950/95 backdrop-blur">
+        <div className="mx-auto flex h-14 max-w-3xl items-center justify-between gap-3 px-4 sm:px-6">
+          <Link to="/dashboard" className="flex min-w-0 items-center gap-2">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-400 to-teal-700 text-white shadow">
               <span className="material-icons text-xl">directions_car</span>
             </div>
-            <span className="font-bold text-lg hidden sm:inline">WASHINGTON</span>
+            <span className="truncate font-bold tracking-tight">WASHINGTON</span>
           </Link>
-        </div>
-        <div className="flex-none gap-1 sm:gap-2">
-          <Link to="/vehicles" className="btn btn-ghost btn-sm hidden sm:inline-flex">
-            My Vehicles
-          </Link>
-          <Link to="/orders" className="btn btn-ghost btn-sm hidden sm:inline-flex">
-            My Orders
-          </Link>
-          <div className="dropdown dropdown-end">
-            <div tabIndex={0} role="button" className="btn btn-ghost btn-circle avatar placeholder">
-              <div className="bg-teal-600 text-white rounded-full w-9">
-                <span className="text-sm">{customerName.charAt(0).toUpperCase()}</span>
-              </div>
-            </div>
-            <ul
-              tabIndex={0}
-              className="dropdown-content menu bg-gradient-to-br rounded-box z-30 w-48 p-2 shadow-lg border border-base-300"
+
+          <nav className="flex items-center gap-1 sm:gap-2">
+            <Link
+              to="/vehicles"
+              className="btn btn-ghost btn-sm hidden rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white sm:inline-flex"
             >
-              <li className="menu-title px-3 pt-1 pb-0">
-                <span className="text-xs opacity-60">Signed in as</span>
-                <span className="font-semibold text-sm">{customerName}</span>
-              </li>
-              <div className="divider my-1" />
-              <li>
-                <Link to="/profile">Profile</Link>
-              </li>
-              <li>
-                <Link to="/vehicles">My Vehicles</Link>
-              </li>
-              <li>
-                <Link to="/orders">My Orders</Link>
-              </li>
-              <li>
-                <Link to="/history">My History</Link>
-              </li>
-              <li>
-                <button type="button" onClick={handleLogout}>
-                  Logout
-                </button>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </div>
+              My Vehicles
+            </Link>
+            <Link
+              to="/orders"
+              className="btn btn-ghost btn-sm hidden rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white sm:inline-flex"
+            >
+              My Orders
+            </Link>
 
-      <div className="p-4 sm:p-6 max-w-3xl mx-auto">
-        <div className="card bg-teal-600 text-white shadow-md mb-6 overflow-hidden">
-          <div className="card-body p-5 sm:p-6">
-            <p className="text-sm opacity-80">Welcome back</p>
-            <h1 className="text-2xl sm:text-3xl font-bold">{customerName}</h1>
-            <p className="text-sm opacity-90 mt-1 max-w-md">
-              Book a wash, track your order, and manage your vehicles in one place.
-            </p>
-            <div className="card-actions mt-4 flex flex-wrap gap-2">
-              <Link
-                to="/orders/create"
-                className="btn btn-sm sm:btn-md bg-white text-teal-800 border-0 rounded-xl hover:bg-teal-50"
+            <div className="dropdown dropdown-end">
+              <div
+                tabIndex={0}
+                role="button"
+                className="btn btn-ghost btn-circle btn-sm"
               >
-                <span className="material-icons text-lg">add</span>
-                Book a Wash
-              </Link>
-              <Link
-                to="/vehicles"
-                className="btn btn-sm sm:btn-md btn-outline border-primary-content/40 text-primary-content rounded-xl"
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-teal-400 to-teal-700 text-sm font-semibold text-white">
+                  {customerName.charAt(0).toUpperCase()}
+                </div>
+              </div>
+              <ul
+                tabIndex={0}
+                className="menu dropdown-content z-40 mt-2 w-52 rounded-xl border border-slate-700 bg-slate-900 p-2 shadow-xl"
               >
-                <span className="material-icons text-lg">directions_car</span>
-                My Vehicles
-              </Link>
+                <li className="menu-title px-3 py-1">
+                  <span className="text-xs text-slate-500">Signed in as</span>
+                  <span className="text-sm font-semibold text-slate-100">
+                    {customerName}
+                  </span>
+                </li>
+                <div className="divider my-1" />
+                <li>
+                  <Link to="/profile">Profile</Link>
+                </li>
+                <li>
+                  <Link to="/vehicles">My Vehicles</Link>
+                </li>
+                <li>
+                  <Link to="/orders">My Orders</Link>
+                </li>
+                <li>
+                  <Link to="/history">My History</Link>
+                </li>
+                <li>
+                  <button type="button" onClick={() => logout()}>
+                    Logout
+                  </button>
+                </li>
+              </ul>
             </div>
-          </div>
+          </nav>
         </div>
+      </header>
 
-        <div className="grid grid-cols-3 gap-3 mb-6">
+      <main className="mx-auto max-w-3xl px-4 py-5 sm:px-6 sm:py-6">
+        {/* Hero — teal gradient like reference */}
+        <section className="mb-5 overflow-hidden rounded-2xl bg-gradient-to-br from-teal-400 to-teal-800 p-5 shadow-lg sm:p-6">
+          <p className="text-sm text-teal-50/90">Welcome back</p>
+          <h1 className="mt-1 text-2xl font-bold text-white sm:text-3xl">
+            {customerName}
+          </h1>
+          <p className="mt-2 max-w-md text-sm leading-relaxed text-teal-50">
+            Book a wash, track your order, and manage your vehicles in one place.
+          </p>
+          <div className="mt-5 flex flex-wrap gap-2">
+            <Link
+              to="/orders/create"
+              className="btn btn-sm rounded-xl border-0 bg-indigo-500 text-white hover:bg-indigo-600 sm:btn-md"
+            >
+              <span className="material-icons text-lg">add</span>
+              Book a Wash
+            </Link>
+            <Link
+              to="/vehicles"
+              className="btn btn-sm rounded-xl border border-white/30 bg-white/10 text-white hover:bg-white/20 sm:btn-md"
+            >
+              <span className="material-icons text-lg">directions_car</span>
+              My Vehicles
+            </Link>
+          </div>
+        </section>
+
+        {/* Stats */}
+        <section className="mb-5 grid grid-cols-3 gap-3">
           {[
             {
               label: 'My Vehicles',
               value: stats.vehicles,
-              sub: 'Registered cars',
+              desc: 'Registered cars',
               icon: 'directions_car',
+              iconBg: 'bg-teal-500',
             },
             {
-              label: 'Active Orders',
+              label: 'Active',
               value: String(stats.active),
-              sub: 'Pending / in progress',
-              icon: 'local_car_wash',
+              desc: 'Pending / processing',
+              icon: 'schedule',
+              iconBg: 'bg-orange-500',
             },
             {
               label: 'Completed',
               value: String(stats.completed),
-              sub: 'Washes done',
+              desc: 'Washes done',
               icon: 'check_circle',
+              iconBg: 'bg-teal-500',
             },
           ].map((s) => (
-            <div key={s.label} className="card bg-100 shadow-sm border border-base-300">
-              <div className="card-body p-3 sm:p-4 items-center text-center">
-                <div className="w-9 h-9 rounded-lg bg-teal-600/10 text-teal-600 flex items-center justify-center">
-                  <span className="material-icons text-xl">{s.icon}</span>
-                </div>
-                <p className="text-xl sm:text-2xl font-bold mt-1">{s.value}</p>
-                <p className="text-xs sm:text-sm font-medium leading-tight">{s.label}</p>
-                <p className="text-[10px] sm:text-xs opacity-50 hidden sm:block">{s.sub}</p>
+            <div
+              key={s.label}
+              className="rounded-2xl border border-slate-800 bg-slate-900/80 p-3 sm:p-4"
+            >
+              <div
+                className={`mb-2 flex h-9 w-9 items-center justify-center rounded-xl ${s.iconBg}`}
+              >
+                <span className="material-icons text-xl text-white">{s.icon}</span>
               </div>
+              <p className="text-xl font-bold text-white sm:text-2xl">{s.value}</p>
+              <p className="text-xs font-medium text-slate-300 sm:text-sm">{s.label}</p>
+              <p className="mt-0.5 hidden text-[10px] text-slate-500 sm:block">
+                {s.desc}
+              </p>
             </div>
           ))}
-        </div>
+        </section>
 
-        <div className="card bg-200 shadow-sm border border-base-300">
-          <div className="card-body p-4 sm:p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="font-bold text-lg">Recent Orders</h2>
-              <Link to="/orders" className="btn btn-ghost btn-xs sm:btn-sm">
-                See all
+        {/* Recent orders */}
+        <section className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-5">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-white">Recent Orders</h2>
+            <Link
+              to="/orders"
+              className="text-sm font-medium text-teal-400 hover:text-teal-300"
+            >
+              See all
+            </Link>
+          </div>
+
+          {loading && (
+            <div className="flex justify-center py-10">
+              <span className="loading loading-spinner loading-md text-teal-400" />
+            </div>
+          )}
+
+          {!loading && error && (
+            <div className="rounded-xl bg-red-500/20 p-4 text-sm text-red-300">
+              {error}
+            </div>
+          )}
+
+          {!loading && !error && myRecentOrders.length === 0 && (
+            <div className="py-10 text-center text-sm text-slate-500">
+              <span className="material-icons mb-2 text-3xl text-slate-600">
+                receipt_long
+              </span>
+              <p>No orders yet.</p>
+              <Link
+                to="/orders/create"
+                className="btn btn-sm mt-3 rounded-xl border-0 bg-indigo-500 text-white hover:bg-indigo-600"
+              >
+                Book a Wash
               </Link>
             </div>
+          )}
 
-            {loading && (
-              <div className="flex justify-center py-8">
-                <span className="loading loading-spinner loading-md text-teal-600" />
-              </div>
-            )}
-
-            {!loading && error && (
-              <div role="alert" className="alert alert-error text-sm">
-                <span className="material-icons text-lg">error</span>
-                <span>{error}</span>
-              </div>
-            )}
-
-            {!loading && !error && myRecentOrders.length === 0 && (
-              <div className="text-center py-8 opacity-60 text-sm">
-                <span className="material-icons text-3xl mb-2 opacity-40">receipt_long</span>
-                <p>No orders yet.</p>
-                <Link to="/orders/create" className="btn bg-teal-600 hover:bg-teal-700 text-white border-0 btn-sm rounded-xl mt-3">
-                  Book a Wash
+          {!loading && !error && myRecentOrders.length > 0 && (
+            <div className="flex flex-col gap-3">
+              {myRecentOrders.map((o) => (
+                <Link
+                  key={o.id}
+                  to={`/orders/${o.id}`}
+                  className="flex items-start justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950/50 p-3 transition-colors hover:border-teal-500/40"
+                >
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-mono text-sm text-slate-400">#{o.id}</p>
+                      {statusBadge(o.status)}
+                    </div>
+                    <p className="mt-1 truncate text-sm font-medium text-white">
+                      {serviceSummary(o)}
+                    </p>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      {vehicleLabel(o)}
+                      {o.createdAt ? ` · ${formatDate(o.createdAt)}` : ''}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="text-sm font-semibold text-white">
+                      {formatRp(orderTotal(o))}
+                    </p>
+                    <span className="material-icons text-base text-slate-600">
+                      chevron_right
+                    </span>
+                  </div>
                 </Link>
-              </div>
-            )}
+              ))}
+            </div>
+          )}
+        </section>
 
-            {!loading && !error && myRecentOrders.length > 0 && (
-              <div className="flex flex-col gap-3">
-                {myRecentOrders.map((o) => (
-                  <Link
-                    key={o.id}
-                    to={`/orders/${o.id}`}
-                    className="flex items-start justify-between gap-3 p-3 rounded-xl bg-gradient-to-br border border-base-300 hover:border-teal-500/50 transition-colors"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-semibold text-sm">#{o.id}</p>
-                        {statusBadge(o.status)}
-                      </div>
-                      <p className="text-sm mt-1 truncate">{serviceSummary(o)}</p>
-                      <p className="text-xs opacity-50 mt-0.5">
-                        {vehicleLabel(o)}
-                        {o.createdAt ? ` · ${formatDate(o.createdAt)}` : ''}
-                      </p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-sm font-semibold">{formatRp(orderTotal(o))}</p>
-                      <span className="material-icons text-base opacity-40">chevron_right</span>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="mt-6 p-4 rounded-xl bg-gradient-to-br border border-base-300 text-sm opacity-70 flex gap-3">
-          <span className="material-icons text-teal-600 shrink-0">info</span>
-          <p>
-            Add your vehicle first, then tap <strong>Book a Wash</strong> to choose services and
-            pay.
+        {/* Help card — same gradient as reference */}
+        <section className="mt-5 rounded-2xl bg-gradient-to-br from-teal-400 to-teal-800 p-5">
+          <h3 className="text-lg font-semibold text-white">Need a hand?</h3>
+          <p className="mt-2 text-sm leading-relaxed text-teal-50">
+            Add your vehicle first, then book a wash to choose services and pay.
           </p>
-        </div>
-      </div>
+          <Link
+            to="/orders"
+            className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-white"
+          >
+            Go to Orders
+            <span className="material-icons text-lg">arrow_forward</span>
+          </Link>
+        </section>
+      </main>
     </div>
   )
 }
