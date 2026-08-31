@@ -138,3 +138,77 @@ export const deleteCustomer = async (req: Request, res: Response, next: NextFunc
     next(error);
   }
 };
+
+export const customerUpdateProfile = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    // set by your auth middleware from JWT
+    const customerId = (req as any).user?.id as number | undefined;
+    if (!customerId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const { name, email, phone } = req.body || {};
+
+    if (!name && !email && phone === undefined) {
+      return res.status(400).json({ message: "Nothing to update" });
+    }
+
+    if (email) {
+      const existing = await prisma.customers.findFirst({
+        where: {
+          email: String(email),
+          NOT: { id: customerId },
+        },
+      });
+      if (existing) {
+        return res.status(409).json({ message: "Email already in use" });
+      }
+    }
+
+    const data: {
+      name?: string;
+      email?: string;
+      phone?: number;
+    } = {};
+
+    if (name) data.name = String(name);
+    if (email) data.email = String(email);
+    if (phone !== undefined) {
+      if (phone !== undefined && phone !== null && phone !== "") {
+        const n = Number(phone);
+
+        if (Number.isNaN(n)) {
+          return res.status(400).json({
+            message: "Phone must be a valid number",
+          });
+        }
+
+        data.phone = n;
+      }
+    }
+
+    const updated = await prisma.customers.update({
+      where: { id: customerId },
+      data,
+    });
+
+    return res.status(200).json({
+      message: "Profile updated",
+      data: {
+        id: updated.id,
+        name: updated.name,
+        email: updated.email,
+        phone: updated.phone,
+        pfp: updated.pfp,
+        role: updated.role,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+

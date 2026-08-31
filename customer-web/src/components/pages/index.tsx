@@ -129,7 +129,12 @@ const Index = () => {
             >
               My Orders
             </Link>
-
+            <Link
+              to="/history"
+              className="btn btn-ghost btn-sm hidden rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white sm:inline-flex"
+            >
+              My History
+            </Link>
             <div className="dropdown dropdown-end">
               <div
                 tabIndex={0}

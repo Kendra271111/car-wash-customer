@@ -9,4 +9,5 @@ router.post('/login', login);
 router.post('/cRegister', upload.single('pfp'), customerRegister);
 router.post('/cLogin', customerLogin);
 
+
 export default router;

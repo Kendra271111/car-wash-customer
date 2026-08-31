@@ -64,7 +64,7 @@ export const updateCustomer = async (
 
 /** Update own profile without knowing id in the URL */
 export const updateMyProfile = async (customerData: Partial<CustomerData>) => {
-  const res = await api.patch(`/customers/me`, customerData)
+  const res = await api.patch(`/customers/profile`, customerData)
   return res.data?.data ?? res.data
 }
 
