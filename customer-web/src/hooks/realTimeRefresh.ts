@@ -7,7 +7,7 @@ type Options = {
   filter?: string
 }
 
-export function useRealtimeRefresh({ tables, onChange, filter }: Options) {
+export function useRealtimeRefresh({ tables, onChange}: Options) {
   const onChangeRef = useRef(onChange)
   const tablesKey = tables.join(',')
 
@@ -17,31 +17,25 @@ export function useRealtimeRefresh({ tables, onChange, filter }: Options) {
   }, [onChange])
 
   useEffect(() => {
-    const channelName = `db-${tablesKey}-${filter ?? 'all'}-${Math.random().toString(36).slice(2)}`
-    const channel = supabase.channel(channelName)
+  const channel = supabase.channel(`dashboard-${tablesKey}`)
 
-    for (const table of tables) {
-      channel.on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table,
-          ...(filter ? { filter } : {}),
-        },
-        (payload) => {
-          console.log('[realtime]', table, payload.eventType)
-          onChangeRef.current(table, payload)
-        }
-      )
-    }
+  for (const table of tables) {
+    channel.on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table },
+      (payload) => {
+        console.log('[realtime]', table, payload.eventType, payload)
+        onChangeRef.current(table, payload)
+      }
+    )
+  }
 
-    channel.subscribe((status, err) => {
-      console.log('[realtime] status:', status, err)
-    })
+  channel.subscribe((status, err) => {
+    console.log('[realtime] status:', status, err)
+  })
 
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [tablesKey, filter]) // eslint-disable-line react-hooks/exhaustive-deps -- tables from tablesKey
+  return () => {
+    void supabase.removeChannel(channel)
+  }
+}, [tablesKey]) // avoid filter unless you really need it
 }

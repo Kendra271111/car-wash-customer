@@ -1,152 +1,167 @@
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router'
-import useAuth from '../../hooks/useAuth'
-import { logout} from '../../api/api'
+// src/components/pages/index.tsx
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router";
+import useAuth from "../../hooks/useAuth";
+import { logout } from "../../api/api";
 import useOrders, {
   statusColors,
   statusLabels,
   type Order,
   type OrderStatus,
-} from '../../hooks/useOrder'
-import { supabase } from '../../libs/supabase'
-import { useRealtimeRefresh } from '../../hooks/realTimeRefresh'
+} from "../../hooks/useOrder";
+import useVehicle from "../../hooks/useVehicles";
+import { useRealtimeRefresh } from "../../hooks/realTimeRefresh";
+
+// ─── helpers ───────────────────────────────────────────────
 
 const formatRp = (amount: number) =>
-  new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
+  new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
     minimumFractionDigits: 0,
-  }).format(amount)
+  }).format(amount);
 
 const orderTotal = (order: Order) =>
   (order.order_items || []).reduce(
     (sum, item) => sum + (item.subtotal ?? (item.price || 0) * (item.qty || 1)),
-    0
-  )
+    0,
+  );
 
 const serviceSummary = (order: Order) => {
   const qty =
-    order.order_items?.reduce((sum, item) => sum + (item.qty || 0), 0) || 0
-  if (!qty) return 'No services'
-  return qty === 1 ? '1 service' : `${qty} services`
-}
+    order.order_items?.reduce((sum, item) => sum + (item.qty || 0), 0) || 0;
+  if (!qty) return "No services";
+  return qty === 1 ? "1 service" : `${qty} services`;
+};
 
 const vehicleLabel = (order: Order) => {
-  const v = order.vehicle
-  if (!v) return order.vehicleId ? `Vehicle #${order.vehicleId}` : '—'
-  const plate = v.plateNumber || ''
-  const name = [v.brand, v.model].filter(Boolean).join(' ') || v.name || ''
-  return [plate, name].filter(Boolean).join(' · ') || `Vehicle #${v.id}`
-}
+  const v = order.vehicle;
+  if (!v) return order.vehicleId ? `Vehicle #${order.vehicleId}` : "—";
+  const plate = v.plateNumber || "";
+  const name = [v.brand, v.model].filter(Boolean).join(" ") || v.name || "";
+  return [plate, name].filter(Boolean).join(" · ") || `Vehicle #${v.id}`;
+};
 
 const formatDate = (value?: string) => {
-  if (!value) return ''
-  const d = new Date(value)
-  if (Number.isNaN(d.getTime())) return value
-  return d.toLocaleDateString('id-ID', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  })
-}
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return d.toLocaleDateString("id-ID", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+};
 
-const statusBadge = (status?: string) => {
-  const key = (status || 'PENDING') as OrderStatus
-  const color = statusColors[key] || 'badge-ghost'
-  const label = statusLabels[key] || key
-  return <span className={`badge badge-sm ${color}`}>{label}</span>
-}
+const StatusBadge = ({ status }: { status?: string }) => {
+  const key = (status || "PENDING") as OrderStatus;
+  return (
+    <span className={`badge badge-sm ${statusColors[key] || "badge-ghost"}`}>
+      {statusLabels[key] || key}
+    </span>
+  );
+};
+
+// ─── page ──────────────────────────────────────────────────
 
 const Index = () => {
-  const user = useAuth.getUser()
-  const customerName = user?.name ?? 'Customer'
-  const customerId = typeof user?.id === 'number' ? user.id : null
+  const user = useAuth.getUser();
+  const customerName = user?.name ?? "Customer";
+  const customerId = typeof user?.id === "number" ? user.id : null;
 
-  const [orders, setOrders] = useState<Order[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [vehicleCount, setVehicleCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    let cancelled = false
+    let cancelled = false;
 
-    const load = async () => {
-      setLoading(true)
-      setError('')
+    (async () => {
+      setError("");
       try {
-        const data = await useOrders.fetchOrders()
-        if (!cancelled) setOrders(Array.isArray(data) ? data : [])
+        const [orderData, vehicleData] = await Promise.all([
+          useOrders.fetchOrders(),
+          customerId != null
+            ? useVehicle.fetchVehiclesByCustomer(customerId)
+            : useVehicle.fetchVehicles(),
+        ]);
+        if (cancelled) return;
+
+        const orderList = Array.isArray(orderData) ? orderData : [];
+        const vehicleList = Array.isArray(vehicleData) ? vehicleData : [];
+
+        setOrders(orderList);
+        setVehicleCount(vehicleList.length);
       } catch {
-        if (!cancelled) setError('Failed to load orders.')
+        if (!cancelled) setError("Failed to load dashboard.");
       } finally {
-        if (!cancelled) setLoading(false)
+        if (!cancelled) setLoading(false);
       }
-    }
+    })();
 
-    load()
     return () => {
-      cancelled = true
-    }
-  }, [])
+      cancelled = true;
+    };
+  }, [customerId]);
 
-  // 2) Realtime — top level, NOT inside the other useEffect
+  // Realtime: refetch without touching loading spinner
   useRealtimeRefresh({
-    tables: ['orders'], // start with one table
+    tables: ["orders", "vehicles", "customers"],
     onChange: () => {
-      useOrders.fetchOrders().then((data) => {
-        setOrders(Array.isArray(data) ? data : [])
-      })
-    },
-  })
-
-  useEffect(() => {
-    const channel = supabase
-      .channel('debug-orders')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'orders' },
-        (payload) => {
-          console.log('RAW EVENT', payload)
-          useOrders.fetchOrders().then(setOrders)
+      void (async () => {
+        try {
+          const [orderData, vehicleData] = await Promise.all([
+            useOrders.fetchOrders(),
+            customerId != null
+              ? useVehicle.fetchVehiclesByCustomer(customerId)
+              : useVehicle.fetchVehicles(),
+          ]);
+          setOrders(Array.isArray(orderData) ? orderData : []);
+          setVehicleCount(Array.isArray(vehicleData) ? vehicleData.length : 0);
+        } catch {
+          // keep existing UI on silent refresh failure
         }
-      )
-      .subscribe((status) => console.log('STATUS', status))
+      })();
+    },
+  });
 
-  return () => {
-    supabase.removeChannel(channel)
-  }
-}, [])
-
-
+  // Plain derived values — no useMemo / useCallback
   const mine =
-    customerId === null
+    customerId == null
       ? orders
-      : orders.filter((o) => o.customerId === customerId)
+      : orders.filter((o) => o.customerId === customerId);
 
-  const computed = useOrders.computeStats(mine)
+  const computed = useOrders.computeStats(mine);
   const stats = {
-    vehicles: '—',
+    vehicles: vehicleCount,
     active: computed.PENDING + computed.PROCESSING,
     completed: computed.COMPLETED,
-  }
+  };
 
-  const myRecentOrders = [...mine]
-    .sort((a, b) => {
-      const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0
-      const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0
-      return tb - ta
-    })
-    .slice(0, 3)
+  const myRecentOrders = useMemo(
+    () =>
+      [...mine]
+        .sort((a, b) => {
+          const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return tb - ta;
+        })
+        .slice(0, 3),
+    [mine],
+  );
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
-      {/* Navbar — fixed structure */}
       <header className="sticky top-0 z-30 border-b border-slate-800 bg-slate-950/95 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-3xl items-center justify-between gap-3 px-4 sm:px-6">
           <Link to="/dashboard" className="flex min-w-0 items-center gap-2">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-teal-400 to-teal-700 text-white shadow">
               <span className="material-icons text-xl">directions_car</span>
             </div>
-            <span className="truncate font-bold tracking-tight">WASHINGTON</span>
+            <span className="truncate font-bold tracking-tight">
+              WASHINGTON
+            </span>
           </Link>
 
           <nav className="flex items-center gap-1 sm:gap-2">
@@ -168,6 +183,7 @@ const Index = () => {
             >
               My History
             </Link>
+
             <div className="dropdown dropdown-end">
               <div
                 tabIndex={0}
@@ -213,14 +229,14 @@ const Index = () => {
       </header>
 
       <main className="mx-auto max-w-3xl px-4 py-5 sm:px-6 sm:py-6">
-        {/* Hero — teal gradient like reference */}
         <section className="mb-5 overflow-hidden rounded-2xl bg-linear-to-br from-teal-400 to-teal-800 p-5 shadow-lg sm:p-6">
           <p className="text-sm text-teal-50/90">Welcome back</p>
           <h1 className="mt-1 text-2xl font-bold text-white sm:text-3xl">
             {customerName}
           </h1>
           <p className="mt-2 max-w-md text-sm leading-relaxed text-teal-50">
-            Book a wash, track your order, and manage your vehicles in one place.
+            Book a wash, track your order, and manage your vehicles in one
+            place.
           </p>
           <div className="mt-5 flex flex-wrap gap-2">
             <Link
@@ -240,29 +256,28 @@ const Index = () => {
           </div>
         </section>
 
-        {/* Stats */}
         <section className="mb-5 grid grid-cols-3 gap-3">
           {[
             {
-              label: 'My Vehicles',
-              value: stats.vehicles,
-              desc: 'Registered cars',
-              icon: 'directions_car',
-              iconBg: 'bg-teal-500',
+              label: "My Vehicles",
+              value: String(stats.vehicles),
+              desc: "Registered cars",
+              icon: "directions_car",
+              iconBg: "bg-teal-500",
             },
             {
-              label: 'Active',
+              label: "Active",
               value: String(stats.active),
-              desc: 'Pending / processing',
-              icon: 'schedule',
-              iconBg: 'bg-orange-500',
+              desc: "Pending / processing",
+              icon: "schedule",
+              iconBg: "bg-orange-500",
             },
             {
-              label: 'Completed',
+              label: "Completed",
               value: String(stats.completed),
-              desc: 'Washes done',
-              icon: 'check_circle',
-              iconBg: 'bg-teal-500',
+              desc: "Washes done",
+              icon: "check_circle",
+              iconBg: "bg-teal-500",
             },
           ].map((s) => (
             <div
@@ -272,10 +287,16 @@ const Index = () => {
               <div
                 className={`mb-2 flex h-9 w-9 items-center justify-center rounded-xl ${s.iconBg}`}
               >
-                <span className="material-icons text-xl text-white">{s.icon}</span>
+                <span className="material-icons text-xl text-white">
+                  {s.icon}
+                </span>
               </div>
-              <p className="text-xl font-bold text-white sm:text-2xl">{s.value}</p>
-              <p className="text-xs font-medium text-slate-300 sm:text-sm">{s.label}</p>
+              <p className="text-xl font-bold text-white sm:text-2xl">
+                {s.value}
+              </p>
+              <p className="text-xs font-medium text-slate-300 sm:text-sm">
+                {s.label}
+              </p>
               <p className="mt-0.5 hidden text-[10px] text-slate-500 sm:block">
                 {s.desc}
               </p>
@@ -283,7 +304,6 @@ const Index = () => {
           ))}
         </section>
 
-        {/* Recent orders */}
         <section className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-5">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-lg font-semibold text-white">Recent Orders</h2>
@@ -332,15 +352,17 @@ const Index = () => {
                 >
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-mono text-sm text-slate-400">#{o.id}</p>
-                      {statusBadge(o.status)}
+                      <p className="font-mono text-sm text-slate-400">
+                        #{o.id}
+                      </p>
+                      <StatusBadge status={o.status} />
                     </div>
                     <p className="mt-1 truncate text-sm font-medium text-white">
                       {serviceSummary(o)}
                     </p>
                     <p className="mt-0.5 text-xs text-slate-500">
                       {vehicleLabel(o)}
-                      {o.createdAt ? ` · ${formatDate(o.createdAt)}` : ''}
+                      {o.createdAt ? ` · ${formatDate(o.createdAt)}` : ""}
                     </p>
                   </div>
                   <div className="shrink-0 text-right">
@@ -357,7 +379,6 @@ const Index = () => {
           )}
         </section>
 
-        {/* Help card — same gradient as reference */}
         <section className="mt-5 rounded-2xl bg-linear-to-br from-teal-400 to-teal-800 p-5">
           <h3 className="text-lg font-semibold text-white">Need a hand?</h3>
           <p className="mt-2 text-sm leading-relaxed text-teal-50">
@@ -373,7 +394,7 @@ const Index = () => {
         </section>
       </main>
     </div>
-  )
-}
+  );
+};
 
-export default Index
+export default Index;
