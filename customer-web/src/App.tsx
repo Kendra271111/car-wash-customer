@@ -2,6 +2,7 @@ import './App.css'
 import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import Login from './components/pages/auth/login'
 import Index from './components/pages'
+import History from './components/pages/history'
 import Register from './components/pages/auth/register'
 import Profile from './components/pages/profile/profile'
 import EditProfile from './components/pages/profile/editProfile'
@@ -40,6 +41,7 @@ function App() {
                 <Route path="/vehicles/create" element={<CreateVehicle />} />
                 <Route path="/orders" element={<Orders />} />
                 <Route path="/orders/create" element={<CreateOrders/>} />
+                <Route path="/history" element={<History/>} />
               </Route>
             </Route>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />

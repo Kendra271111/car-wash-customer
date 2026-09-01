@@ -107,7 +107,7 @@ const Index = () => {
 
   // Realtime: refetch without touching loading spinner
   useRealtimeRefresh({
-    tables: ["orders", "vehicles", "customers"],
+    tables: ["orders", "vehicles", "customers", "order_items", "services"],
     onChange: () => {
       void (async () => {
         try {
