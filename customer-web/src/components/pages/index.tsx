@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import useAuth from '../../hooks/useAuth'
-import { logout } from '../../api/api'
+import { logout} from '../../api/api'
 import useOrders, {
   statusColors,
   statusLabels,
   type Order,
   type OrderStatus,
 } from '../../hooks/useOrder'
+import { useRealtimeRefresh } from '../../hooks/RealTimeRefresh'
+import { supabase } from '../../libs/supabase'
 
 const formatRp = (amount: number) =>
   new Intl.NumberFormat('id-ID', {
@@ -66,6 +68,7 @@ const Index = () => {
 
   useEffect(() => {
     let cancelled = false
+
     const load = async () => {
       setLoading(true)
       setError('')
@@ -78,11 +81,41 @@ const Index = () => {
         if (!cancelled) setLoading(false)
       }
     }
+
     load()
     return () => {
       cancelled = true
     }
   }, [])
+
+  // 2) Realtime — top level, NOT inside the other useEffect
+  useRealtimeRefresh({
+    tables: ['orders'], // start with one table
+    onChange: () => {
+      useOrders.fetchOrders().then((data) => {
+        setOrders(Array.isArray(data) ? data : [])
+      })
+    },
+  })
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('debug-orders')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'orders' },
+        (payload) => {
+          console.log('RAW EVENT', payload)
+          useOrders.fetchOrders().then(setOrders)
+        }
+      )
+      .subscribe((status) => console.log('STATUS', status))
+
+  return () => {
+    supabase.removeChannel(channel)
+  }
+}, [])
+
 
   const mine =
     customerId === null
@@ -110,7 +143,7 @@ const Index = () => {
       <header className="sticky top-0 z-30 border-b border-slate-800 bg-slate-950/95 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-3xl items-center justify-between gap-3 px-4 sm:px-6">
           <Link to="/dashboard" className="flex min-w-0 items-center gap-2">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-400 to-teal-700 text-white shadow">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-teal-400 to-teal-700 text-white shadow">
               <span className="material-icons text-xl">directions_car</span>
             </div>
             <span className="truncate font-bold tracking-tight">WASHINGTON</span>
@@ -141,7 +174,7 @@ const Index = () => {
                 role="button"
                 className="btn btn-ghost btn-circle btn-sm"
               >
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-teal-400 to-teal-700 text-sm font-semibold text-white">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-linear-to-br from-teal-400 to-teal-700 text-sm font-semibold text-white">
                   {customerName.charAt(0).toUpperCase()}
                 </div>
               </div>
@@ -181,7 +214,7 @@ const Index = () => {
 
       <main className="mx-auto max-w-3xl px-4 py-5 sm:px-6 sm:py-6">
         {/* Hero — teal gradient like reference */}
-        <section className="mb-5 overflow-hidden rounded-2xl bg-gradient-to-br from-teal-400 to-teal-800 p-5 shadow-lg sm:p-6">
+        <section className="mb-5 overflow-hidden rounded-2xl bg-linear-to-br from-teal-400 to-teal-800 p-5 shadow-lg sm:p-6">
           <p className="text-sm text-teal-50/90">Welcome back</p>
           <h1 className="mt-1 text-2xl font-bold text-white sm:text-3xl">
             {customerName}
@@ -325,7 +358,7 @@ const Index = () => {
         </section>
 
         {/* Help card — same gradient as reference */}
-        <section className="mt-5 rounded-2xl bg-gradient-to-br from-teal-400 to-teal-800 p-5">
+        <section className="mt-5 rounded-2xl bg-linear-to-br from-teal-400 to-teal-800 p-5">
           <h3 className="text-lg font-semibold text-white">Need a hand?</h3>
           <p className="mt-2 text-sm leading-relaxed text-teal-50">
             Add your vehicle first, then book a wash to choose services and pay.
