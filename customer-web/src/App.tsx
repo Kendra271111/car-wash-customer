@@ -10,6 +10,7 @@ import CreateVehicle from './components/pages/vehicles/createVehicles'
 import Vehicles from './components/pages/vehicles/vehicles'
 import Orders from './components/pages/orders/orders'
 import CreateOrders from './components/pages/orders/createOrders'
+import ViewOrder from './components/pages/orders/viewOrder'
 
 const RequireAuth = () => {
   const token = localStorage.getItem('token')
@@ -40,6 +41,7 @@ function App() {
                 <Route path="/vehicles" element={<Vehicles />} />
                 <Route path="/vehicles/create" element={<CreateVehicle />} />
                 <Route path="/orders" element={<Orders />} />
+                <Route path="/orders/:id" element={<ViewOrder />} />
                 <Route path="/orders/create" element={<CreateOrders/>} />
                 <Route path="/history" element={<History/>} />
               </Route>
