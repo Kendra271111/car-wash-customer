@@ -51,7 +51,7 @@ model orders {
   id          Int           @id @default(autoincrement())
   vehicleId   Int
   customerId  Int
-  staffId     Int
+  staffId     Int?
   status      String        @default("PENDING")
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @default(now()) @updatedAt
@@ -59,7 +59,7 @@ model orders {
   order_items order_items[]
   customer    customers     @relation(fields: [customerId], references: [id])
   vehicle     vehicles      @relation(fields: [vehicleId], references: [id])
-  staff       staff         @relation(fields: [staffId], references: [id])
+  staff       staff?         @relation(fields: [staffId], references: [id])
   payements   payments[]
 }
 
