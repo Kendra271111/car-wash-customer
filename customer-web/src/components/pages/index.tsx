@@ -8,8 +8,8 @@ import useOrders, {
   type Order,
   type OrderStatus,
 } from '../../hooks/useOrder'
-import { useRealtimeRefresh } from '../../hooks/RealTimeRefresh'
 import { supabase } from '../../libs/supabase'
+import { useRealtimeRefresh } from '../../hooks/realTimeRefresh'
 
 const formatRp = (amount: number) =>
   new Intl.NumberFormat('id-ID', {
