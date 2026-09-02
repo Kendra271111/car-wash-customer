@@ -81,8 +81,10 @@ model payments {
   orderId   Int
   amount    Float
   change    Float
-  method    String
+  method    String?
   status    String   @default("PENDING")
+  notes    String?
+  midtransOrderId String?
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
   order     orders   @relation(fields: [orderId], references: [id], onDelete: Cascade)

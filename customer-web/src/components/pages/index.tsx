@@ -393,6 +393,10 @@ const Index = () => {
           </Link>
         </section>
       </main>
+      <script
+        src="https://app.sandbox.midtrans.com/snap/snap.js"
+        data-client-key="VITE_MIDTRANS_CLIENT_KEY"
+      ></script>
     </div>
   );
 };

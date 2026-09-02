@@ -4,8 +4,24 @@ import { Link, useNavigate, useParams } from 'react-router'
 import axios from 'axios'
 import useOrders, { type Order } from '../../../hooks/useOrder'
 import usePayment from '../../../hooks/usePayment'
+import { loadSnap } from '../../../libs/midtrans'
+import { api } from '../../../api/api'
 
 const METHODS = ['CASH', 'QRIS', 'E-MONEY', 'TRANSFER'] as const
+
+type SnapWindow = Window & {
+  snap?: {
+    pay: (
+      token: string,
+      callbacks: {
+        onSuccess?: () => void
+        onPending?: () => void
+        onError?: () => void
+        onClose?: () => void
+      }
+    ) => void
+  }
+}
 
 const formatRp = (value: number) =>
   new Intl.NumberFormat('id-ID', {
@@ -63,7 +79,6 @@ const OrderPayment = () => {
       0
     ) || 0
 
-  // For non-cash methods, default received = total
   const receivedNum =
     paymentMethod === 'CASH'
       ? Number(amountReceived || 0)
@@ -71,17 +86,60 @@ const OrderPayment = () => {
 
   const change = receivedNum - total
 
-  const handleSubmit = async () => {
+  const payWithMidtrans = async () => {
+    if (!id) return
+    setError(null)
+    setSubmitting(true)
+    try {
+      await loadSnap()
+      const { data } = await api.post('/payments/midtrans/snap', {
+        orderId: Number(id),
+      })
+      const token = data?.data?.token || data?.token
+      if (!token) throw new Error('No snap token')
+
+      const snap = (window as SnapWindow).snap
+      if (!snap) throw new Error('Snap.js not loaded')
+
+      snap.pay(token, {
+        onSuccess: () => {
+          setSuccess(true)
+          setSubmitting(false)
+          navigate(`/orders/${id}`, { replace: true })
+        },
+        onPending: () => {
+          setError('Payment pending. Finish it in the Midtrans window.')
+          setSubmitting(false)
+        },
+        onError: () => {
+          setError('Payment failed.')
+          setSubmitting(false)
+        },
+        onClose: () => {
+          setSubmitting(false)
+        },
+      })
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        setError(err.response?.data?.message || 'Failed to start payment.')
+      } else if (err instanceof Error) {
+        setError(err.message)
+      } else {
+        setError('Failed to start payment.')
+      }
+      setSubmitting(false)
+    }
+  }
+
+  const payWithCash = async () => {
+    if (!id) return
     setError(null)
 
-    const paid = paymentMethod === 'CASH' ? Number(amountReceived || 0) : total
-
-    if (paymentMethod === 'CASH' && (!amountReceived || paid < total)) {
+    const paid = Number(amountReceived || 0)
+    if (!amountReceived || paid < total) {
       setError('Amount received must be at least the total.')
       return
     }
-
-    if (!id) return
 
     setSubmitting(true)
     try {
@@ -89,14 +147,12 @@ const OrderPayment = () => {
         orderId: Number(id),
         amount: total,
         change: change > 0 ? change : 0,
-        method: paymentMethod,
+        method: 'CASH',
         status: 'PAID',
         notes: notes || undefined,
       })
       setSuccess(true)
-      setTimeout(() => {
-        navigate(`/orders/${id}`, { replace: true })
-      }, 1000)
+      setTimeout(() => navigate(`/orders/${id}`, { replace: true }), 800)
     } catch (err: unknown) {
       if (axios.isAxiosError(err)) {
         setError(err.response?.data?.message || 'Failed to process payment.')
@@ -105,6 +161,14 @@ const OrderPayment = () => {
       }
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handleSubmit = async () => {
+    if (paymentMethod === 'CASH') {
+      await payWithCash()
+    } else {
+      await payWithMidtrans()
     }
   }
 
@@ -159,7 +223,6 @@ const OrderPayment = () => {
               </div>
             )}
 
-            {/* Order summary */}
             <section className="mb-4 rounded-2xl border border-slate-800 bg-slate-900 p-4">
               <h2 className="mb-3 text-sm font-semibold">Order details</h2>
               <div className="space-y-2 text-sm">
@@ -181,7 +244,6 @@ const OrderPayment = () => {
               </div>
             </section>
 
-            {/* Services */}
             <section className="mb-4 rounded-2xl border border-slate-800 bg-slate-900 p-4">
               <h2 className="mb-3 text-sm font-semibold">Services</h2>
               {(order.order_items || []).map((item, i) => (
@@ -205,7 +267,6 @@ const OrderPayment = () => {
               ))}
             </section>
 
-            {/* Payment form */}
             <section className="mb-4 rounded-2xl border border-slate-800 bg-slate-900 p-4">
               <div className="mb-1 flex justify-between text-sm">
                 <span className="text-slate-400">Subtotal</span>
@@ -267,10 +328,15 @@ const OrderPayment = () => {
                 </>
               )}
 
-              {paymentMethod === 'QRIS' && (
+              {paymentMethod !== 'CASH' && (
                 <div className="mb-4 rounded-xl border border-dashed border-teal-600/40 bg-teal-500/10 p-4 text-center text-sm text-teal-100">
-                  <span className="material-icons mb-1 text-3xl text-teal-400">qr_code_2</span>
-                  <p>Scan QRIS at the counter or use Midtrans when integrated.</p>
+                  <span className="material-icons mb-1 text-3xl text-teal-400">
+                    {paymentMethod === 'QRIS' ? 'qr_code_2' : 'account_balance'}
+                  </span>
+                  <p>
+                    You will complete payment securely via Midtrans (
+                    {paymentMethod}).
+                  </p>
                   <p className="mt-1 font-semibold text-white">{formatRp(total)}</p>
                 </div>
               )}
@@ -287,14 +353,16 @@ const OrderPayment = () => {
 
             <button
               type="button"
-              onClick={handleSubmit}
+              onClick={() => void handleSubmit()}
               disabled={submitting || success}
               className="btn mb-2 w-full rounded-xl border-0 bg-indigo-500 text-white hover:bg-indigo-600"
             >
               {submitting ? (
                 <span className="loading loading-spinner loading-sm" />
-              ) : (
+              ) : paymentMethod === 'CASH' ? (
                 'Mark as Paid'
+              ) : (
+                'Pay with Midtrans'
               )}
             </button>
 
