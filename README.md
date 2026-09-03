@@ -70,7 +70,7 @@ car-wash-customer/
     │   ├── hooks/           # useAuth, useOrder, useVehicles, …
     │   └── assets/img/bg/   # login/register carousel images
     └── .env
-
+```
 ---
 
 ## Prerequisites
@@ -99,7 +99,6 @@ MIDTRANS_IS_PRODUCTION=false
 # Public URL of this API (for Midtrans notification / finish redirects)
 FRONTEND_URL="http://localhost:5173"
 # Optional: explicit notification base if different from tunnel
-```
 
 Use the **direct** Supabase connection string for migrations when the pooler is slow or times out; use the pooler for the app if you prefer.
 
