@@ -1,4 +1,3 @@
-```markdown
 # WASHINGTON — Customer Web
 
 Customer-facing web app for the **WASHINGTON** car wash platform.  
@@ -71,7 +70,6 @@ car-wash-customer/
     │   ├── hooks/           # useAuth, useOrder, useVehicles, …
     │   └── assets/img/bg/   # login/register carousel images
     └── .env
-```
 
 ---
 
