@@ -28,21 +28,39 @@ export const createVehicle = async (req: Request, res: Response, next: NextFunct
   }
 };
 
-export const getAllVehicles = async (req: Request, res: Response, next: NextFunction) => {
+export const getAllVehicles = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
-    const { search, page = '1', limit = '10' } = req.query;
-    const pageNum = Number(page);
-    const limitNum = Number(limit);
-    const skip = (pageNum - 1) * limitNum;
+    const { search, page = '1', limit = '10', customerId } = req.query
+    const pageNum = Number(page) || 1
+    const limitNum = Number(limit) || 10
+    const skip = (pageNum - 1) * limitNum
 
-    const where: any = {};
-    if (search) {
+    const where: {
+      customerId?: number
+      OR?: Array<Record<string, unknown>>
+    } = {}
+
+    // Customer app: only this customer's cars
+    if (customerId !== undefined && customerId !== '') {
+      const cid = Number(customerId)
+      if (!Number.isFinite(cid)) {
+        return res.status(400).json({ message: 'Invalid customerId' })
+      }
+      where.customerId = cid
+    }
+
+    if (typeof search === 'string' && search.trim()) {
+      const q = search.trim()
       where.OR = [
-        { name: { contains: search as string, mode: 'insensitive' } },
-        { plateNumber: { contains: search as string, mode: 'insensitive' } },
-        { brand: { contains: search as string, mode: 'insensitive' } },
-        { model: { contains: search as string, mode: 'insensitive' } },
-      ];
+        { name: { contains: q, mode: 'insensitive' } },
+        { plateNumber: { contains: q, mode: 'insensitive' } },
+        { brand: { contains: q, mode: 'insensitive' } },
+        { model: { contains: q, mode: 'insensitive' } },
+      ]
     }
 
     const [vehicles, total_data] = await Promise.all([
@@ -57,7 +75,7 @@ export const getAllVehicles = async (req: Request, res: Response, next: NextFunc
         },
       }),
       prisma.vehicles.count({ where }),
-    ]);
+    ])
 
     return res.status(200).json({
       message: 'Vehicles retrieved successfully',
@@ -68,15 +86,19 @@ export const getAllVehicles = async (req: Request, res: Response, next: NextFunc
         total_pages: Math.ceil(total_data / limitNum),
       },
       data: vehicles,
-    });
+    })
   } catch (error) {
-    next(error);
+    next(error)
   }
-};
+}
 
-export const getVehicleById = async (req: Request, res: Response, next: NextFunction) => {
+export const getVehicleById = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params
 
     const vehicle = await prisma.vehicles.findUnique({
       where: { id: Number(id) },
@@ -84,20 +106,20 @@ export const getVehicleById = async (req: Request, res: Response, next: NextFunc
         customer: true,
         orders: true,
       },
-    });
+    })
 
     if (!vehicle) {
-      return res.status(404).json({ message: 'Vehicle not found' });
+      return res.status(404).json({ message: 'Vehicle not found' })
     }
 
     return res.status(200).json({
       message: 'Vehicle retrieved successfully',
       data: vehicle,
-    });
+    })
   } catch (error) {
-    next(error);
+    next(error)
   }
-};
+}
 
 export const updateVehicle = async (req: Request, res: Response, next: NextFunction) => {
   try {

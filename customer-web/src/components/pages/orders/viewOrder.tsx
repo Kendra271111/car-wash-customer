@@ -1,23 +1,50 @@
 // src/components/pages/orders/viewOrder.tsx
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import axios from 'axios'
 import useOrders, {
-  statusColors,
-  statusLabels,
   type Order,
   type OrderStatus,
 } from '../../../hooks/useOrder'
+import { api } from '../../../api/api'
+import { useRealtimeRefresh } from '../../../hooks/realTimeRefresh'
 
 type PaymentInfo = {
   id?: number
   status?: string
   method?: string
+  amount?: number
 }
 
-const formatDate = (dateString?: string) => {
-  if (!dateString) return '—'
-  return new Date(dateString).toLocaleString('id-ID', {
+const STEPS: {
+  key: OrderStatus
+  label: string
+  hint: string
+  icon: string
+}[] = [
+  {
+    key: 'PENDING',
+    label: 'Waiting',
+    hint: 'Order received, waiting to start',
+    icon: 'schedule',
+  },
+  {
+    key: 'PROCESSING',
+    label: 'In Progress',
+    hint: 'Your car is being washed',
+    icon: 'local_car_wash',
+  },
+  {
+    key: 'COMPLETED',
+    label: 'Completed',
+    hint: 'All done — ready for pickup',
+    icon: 'check_circle',
+  },
+]
+
+const formatDate = (value?: string) => {
+  if (!value) return '—'
+  return new Date(value).toLocaleString('id-ID', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -33,58 +60,61 @@ const formatRp = (n: number) =>
     minimumFractionDigits: 0,
   }).format(n)
 
-const paymentsOf = (order: Order): PaymentInfo[] => {
-  const raw =
-    order.payements ||
-    (order as { payments?: PaymentInfo[] }).payments ||
-    []
-  return raw as PaymentInfo[]
+const paymentsOf = (order: Order | null): PaymentInfo[] => {
+  if (!order) return []
+  const o = order as Order & {
+    payments?: PaymentInfo[]
+    payements?: PaymentInfo[]
+  }
+  return [...(o.payments ?? o.payements ?? [])]
 }
+
+const pickPayment = (list: PaymentInfo[]): PaymentInfo | null => {
+  if (!list.length) return null
+  const paid = list.find((p) => String(p.status).toUpperCase() === 'PAID')
+  if (paid) return paid
+  return [...list].sort((a, b) => (b.id ?? 0) - (a.id ?? 0))[0] ?? null
+}
+
+const stepIndex = (status: OrderStatus) => {
+  if (status === 'CANCELLED') return -1
+  const i = STEPS.findIndex((s) => s.key === status)
+  return i >= 0 ? i : 0
+}
+
 const ViewOrder = () => {
   const { id } = useParams()
   const navigate = useNavigate()
 
   const [order, setOrder] = useState<Order | null>(null)
+  const [extraPayment, setExtraPayment] = useState<PaymentInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [cancelling, setCancelling] = useState(false)
-
-  const loadOrder = async () => {
-    if (!id) return
-    setLoading(true)
-    setError(null)
-    try {
-      const data = await useOrders.fetchOrderById(id)
-      setOrder(data)
-    } catch (err: unknown) {
-      if (axios.isAxiosError(err)) {
-        setError(err.response?.data?.message || 'Failed to load order.')
-      } else {
-        setError('Failed to load order.')
-      }
-      setOrder(null)
-    } finally {
-      setLoading(false)
-    }
-  }
 
   useEffect(() => {
   if (!id) return
-  let cancelled = false
+  let cancelled = false;
 
-  ;(async () => {
+  (async () => {
     setError(null)
     try {
       const data = await useOrders.fetchOrderById(id)
-      if (!cancelled) setOrder(data)
+      if (cancelled) return
+      setOrder(data)
+      try {
+        const { data: payRes } = await api.get(`/payments/order/${id}`)
+        if (!cancelled) setExtraPayment((payRes?.data as PaymentInfo) ?? null)
+      } catch {
+        if (!cancelled) setExtraPayment(null)
+      }
     } catch (err: unknown) {
       if (cancelled) return
-      if (axios.isAxiosError(err)) {
-        setError(err.response?.data?.message || 'Failed to load order.')
-      } else {
-        setError('Failed to load order.')
-      }
-      if (!cancelled) setOrder(null)
+      setError(
+        axios.isAxiosError(err)
+          ? err.response?.data?.message || 'Failed to load order.'
+          : 'Failed to load order.'
+      )
+      setOrder(null)
     } finally {
       if (!cancelled) setLoading(false)
     }
@@ -93,59 +123,63 @@ const ViewOrder = () => {
   return () => {
     cancelled = true
   }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- reload when id changes
 }, [id])
 
-  const payment = paymentsOf(order || ({} as Order))[0] || null
+const silentReload = useCallback(async () => {
+  if (!id) return
+  try {
+    const data = await useOrders.fetchOrderById(id)
+    setOrder(data)
+    try {
+      const { data: payRes } = await api.get(`/payments/order/${id}`)
+      setExtraPayment((payRes?.data as PaymentInfo) ?? null)
+    } catch {
+      // Payment endpoint failed — order data still updated above
+      setExtraPayment(null)
+    }
+  } catch {
+    // Realtime refresh failed — do nothing, leave current order visible
+  }
+}, [id])
+
+useRealtimeRefresh({
+  tables: ['orders', 'payments'],
+  onChange: () => {
+    void silentReload()
+  },
+})
+
   const status = (order?.status || 'PENDING') as OrderStatus
-  const isPaid =
-    payment?.status === 'PAID' || payment?.status === 'paid'
+  const fromOrder = pickPayment(paymentsOf(order))
+  const payment = pickPayment(
+    [fromOrder, extraPayment].filter(Boolean) as PaymentInfo[]
+  )
+  const paid = String(payment?.status || '').toUpperCase() === 'PAID'
   const total = (order?.order_items || []).reduce(
-    (sum, item) => sum + Number(item.subtotal ?? (item.price || 0) * (item.qty || 1)),
+    (sum, item) =>
+      sum + Number(item.subtotal ?? (item.price || 0) * (item.qty || 1)),
     0
   )
-  const showPay = status !== 'CANCELLED' && !isPaid
-  const showCancel = status === 'PENDING' && !isPaid
-
-  const handleCancel = async () => {
-    if (!id || !confirm('Cancel this order?')) return
-    setCancelling(true)
-    try {
-      await useOrders.updateOrderStatus(id, 'CANCELLED')
-      await loadOrder()
-    } catch (err: unknown) {
-      if (axios.isAxiosError(err)) {
-        setError(err.response?.data?.message || 'Failed to cancel order.')
-      } else {
-        setError('Failed to cancel order.')
-      }
-    } finally {
-      setCancelling(false)
-    }
-  }
-
-  const handlePrint = () => {
-    window.print()
-  }
+  const canPay = status !== 'CANCELLED' && !paid
+  const active = stepIndex(status)
+  const cancelled = status === 'CANCELLED'
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <header className="sticky top-0 z-30 border-b border-slate-800 bg-slate-950/95 backdrop-blur print:hidden">
-        <div className="mx-auto flex h-14 max-w-3xl items-center justify-between gap-3 px-4 sm:px-6">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              className="btn btn-ghost btn-sm btn-circle text-slate-300 hover:bg-slate-800"
-            >
-              <span className="material-icons">arrow_back</span>
-            </button>
-            <div>
-              <h1 className="text-lg font-bold leading-tight">Order #{id}</h1>
-              <p className="text-xs text-slate-500">
-                {order ? formatDate(order.createdAt) : '…'}
-              </p>
-            </div>
+        <div className="mx-auto flex h-14 max-w-3xl items-center gap-2 px-4 sm:px-6">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="btn btn-ghost btn-sm btn-circle text-slate-300 hover:bg-slate-800"
+          >
+            <span className="material-icons">arrow_back</span>
+          </button>
+          <div>
+            <h1 className="text-lg font-bold leading-tight">Order #{id}</h1>
+            <p className="text-xs text-slate-500">
+              {order ? formatDate(order.createdAt) : '…'}
+            </p>
           </div>
         </div>
       </header>
@@ -159,7 +193,9 @@ const ViewOrder = () => {
 
         {!loading && (error || !order) && (
           <div className="rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center">
-            <span className="material-icons text-4xl text-red-400">error_outline</span>
+            <span className="material-icons text-4xl text-red-400">
+              error_outline
+            </span>
             <p className="mt-3 text-red-300">{error || 'Order not found.'}</p>
             <Link to="/orders" className="btn btn-sm mt-4 rounded-xl bg-slate-800">
               Back to orders
@@ -169,22 +205,110 @@ const ViewOrder = () => {
 
         {!loading && order && (
           <div className="print:text-black">
-            {/* Print header */}
             <div className="mb-4 hidden print:block">
               <h1 className="text-2xl font-bold">WASHINGTON</h1>
-              <p className="text-sm text-slate-600">Service Ticket · Order #{order.id}</p>
+              <p className="text-sm text-slate-600">
+                Service Ticket · Order #{order.id}
+              </p>
             </div>
 
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-              <span className={`badge ${statusColors[status] || 'badge-ghost'}`}>
-                {statusLabels[status] || status}
-              </span>
-              <span className="text-sm text-slate-400">
-                {isPaid ? 'Paid' : 'Unpaid'}
-              </span>
-            </div>
+            {cancelled ? (
+              <section className="mb-5 rounded-2xl border border-red-500/30 bg-red-500/10 p-4">
+                <div className="flex items-center gap-3">
+                  <span className="material-icons text-3xl text-red-400">
+                    cancel
+                  </span>
+                  <div>
+                    <p className="font-semibold text-red-300">Order cancelled</p>
+                    <p className="text-sm text-red-200/70">
+                      This wash request is no longer active.
+                    </p>
+                  </div>
+                </div>
+              </section>
+            ) : (
+              <section className="mb-5">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  Order progress
+                </p>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  {STEPS.map((step, i) => {
+                    const done = i < active
+                    const current = i === active
+                    return (
+                      <div
+                        key={step.key}
+                        className={`relative rounded-2xl border p-4 transition-all ${
+                          current
+                            ? 'border-teal-500/60 bg-linear-to-br from-teal-500/20 to-teal-800/30 shadow-lg shadow-teal-900/20'
+                            : done
+                              ? 'border-emerald-500/30 bg-emerald-500/10'
+                              : 'border-slate-800 bg-slate-900/80 opacity-60'
+                        }`}
+                      >
+                        <div className="mb-2 flex items-center justify-between">
+                          <span
+                            className={`material-icons text-2xl ${
+                              current
+                                ? 'text-teal-300'
+                                : done
+                                  ? 'text-emerald-400'
+                                  : 'text-slate-600'
+                            }`}
+                          >
+                            {done ? 'check_circle' : step.icon}
+                          </span>
+                          {current && (
+                            <span className="rounded-full bg-teal-500/30 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-teal-200">
+                              Now
+                            </span>
+                          )}
+                          {done && (
+                            <span className="text-[10px] font-semibold uppercase tracking-wide text-emerald-400/80">
+                              Done
+                            </span>
+                          )}
+                        </div>
+                        <p
+                          className={`text-sm font-semibold ${
+                            current
+                              ? 'text-white'
+                              : done
+                                ? 'text-emerald-200'
+                                : 'text-slate-500'
+                          }`}
+                        >
+                          {step.label}
+                        </p>
+                        <p
+                          className={`mt-0.5 text-xs ${
+                            current ? 'text-teal-100/80' : 'text-slate-500'
+                          }`}
+                        >
+                          {step.hint}
+                        </p>
+                      </div>
+                    )
+                  })}
+                </div>
 
-            {/* Summary */}
+                <div className="mt-3 flex items-center justify-between gap-2 px-1">
+                  <span
+                    className={`text-xs font-medium ${
+                      paid ? 'text-emerald-400' : 'text-amber-400'
+                    }`}
+                  >
+                    {paid ? 'Payment: Paid' : 'Payment: Unpaid'}
+                  </span>
+                  {payment?.method && (
+                    <span className="text-xs text-slate-500">
+                      {payment.method}
+                    </span>
+                  )}
+                </div>
+              </section>
+            )}
+
             <section className="mb-4 rounded-2xl border border-slate-800 bg-slate-900 p-4 print:border-slate-300 print:bg-white">
               <Row
                 label="Customer"
@@ -204,18 +328,22 @@ const ViewOrder = () => {
               />
               <Row
                 label="Staff"
-                value={order.staff?.name || (order.staffId ? `Staff #${order.staffId}` : '—')}
+                value={
+                  order.staff?.name ||
+                  (order.staffId ? `Staff ${order.staffId}` : '—')
+                }
                 last
               />
             </section>
 
-            {/* Items */}
             <section className="mb-4 rounded-2xl border border-slate-800 bg-slate-900 p-4 print:border-slate-300 print:bg-white">
-              <h2 className="mb-3 text-sm font-semibold text-white print:text-black">
+              <h2 className="mb-3 text-sm font-semibold print:text-black">
                 Services
               </h2>
               {(order.order_items || []).length === 0 ? (
-                <p className="py-4 text-center text-sm text-slate-500">No services.</p>
+                <p className="py-4 text-center text-sm text-slate-500">
+                  No services.
+                </p>
               ) : (
                 (order.order_items || []).map((item, i) => (
                   <div
@@ -224,8 +352,8 @@ const ViewOrder = () => {
                   >
                     <div>
                       <p className="text-sm font-medium">
-                        {(item as { service?: { name?: string } }).service?.name ||
-                          `Service #${item.serviceId}`}
+                        {(item as { service?: { name?: string } }).service
+                          ?.name || `Service #${item.serviceId}`}
                       </p>
                       <p className="text-xs text-slate-500">
                         {item.duration || 0} min · qty {item.qty || 1}
@@ -249,46 +377,52 @@ const ViewOrder = () => {
 
             {!!order.note && (
               <section className="mb-4 rounded-2xl border border-slate-800 bg-slate-900 p-4 print:border-slate-300 print:bg-white">
-                <p className="mb-1 text-xs font-semibold uppercase text-slate-500">Notes</p>
-                <p className="text-sm text-slate-300 print:text-slate-700">{order.note}</p>
-              </section>
-            )}
-
-            {payment && (
-              <section className="mb-4 rounded-2xl border border-slate-800 bg-slate-900 p-4 print:border-slate-300 print:bg-white">
-                <p className="mb-1 text-xs font-semibold uppercase text-slate-500">Payment</p>
-                <p className="text-sm font-medium">
-                    {payment.status}
-                    {payment.method ? ` · ${payment.method}` : ''}
+                <p className="mb-1 text-xs font-semibold uppercase text-slate-500">
+                  Notes
+                </p>
+                <p className="text-sm text-slate-300 print:text-slate-700">
+                  {order.note}
                 </p>
               </section>
             )}
 
-            {/* Actions — customer */}
-            <div className="flex flex-col gap-2 justify-center print:hidden">
-                <div className="flex flex-row gap-3 w-[49%] items-center print:hidden">
-                    {showPay && (
-                  <Link
-                    to={`/orders/${id}/pay`}
-                    className="btn rounded-xl border-0 w-full bg-pink-500 text-white hover:bg-pink-600"
-                  >
-                    Go to Payment
-                  </Link>
-                )}
+            <section className="mb-4 rounded-2xl border border-slate-800 bg-slate-900 p-4 print:border-slate-300 print:bg-white">
+              <p className="mb-1 text-xs font-semibold uppercase text-slate-500">
+                Payment
+              </p>
+              {payment ? (
+                <p className="text-sm font-medium">
+                  {String(payment.status).toUpperCase()}
+                  {payment.method ? ` · ${payment.method}` : ''}
+                  {payment.amount != null
+                    ? ` · ${formatRp(Number(payment.amount))}`
+                    : ''}
+                </p>
+              ) : (
+                <p className="text-sm text-slate-500">No payment yet</p>
+              )}
+            </section>
 
-                <button
-                  type="button"
-                  onClick={handlePrint}
-                  className="btn rounded-xl border w-full border-slate-700 bg-transparent text-slate-300"
+            <div className="flex flex-col gap-2 print:hidden">
+              {canPay && (
+                <Link
+                  to={`/orders/${id}/pay`}
+                  className="btn w-full rounded-xl border-0 bg-pink-500 text-white hover:bg-pink-600"
                 >
-                  <span className="material-icons text-lg">print</span>
-                  Print service ticket
-                </button>
-              </div>
-              
+                  Go to Payment
+                </Link>
+              )}
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="btn w-full rounded-xl border border-slate-700 bg-transparent text-slate-300"
+              >
+                <span className="material-icons text-lg">print</span>
+                Print service ticket
+              </button>
               <Link
                 to="/orders"
-                className="btn rounded-xl border-0 bg-slate-800 text-slate-200"
+                className="btn w-full rounded-xl border-0 bg-slate-800 text-slate-200"
               >
                 Back to orders
               </Link>

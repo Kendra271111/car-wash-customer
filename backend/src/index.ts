@@ -8,8 +8,13 @@ import { ErrorHandler } from './middlewares/errorHandler'
 const app = express();
 const port = 3000;
 
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:5174",
+];
+
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: allowedOrigins,
   credentials: true,
 }));
 app.use(express.json());

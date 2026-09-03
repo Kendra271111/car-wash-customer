@@ -1,6 +1,6 @@
 // src/controllers/paymentControllers.ts
 import type { Request, Response, NextFunction } from 'express'
-import type { Prisma } from '../../.prisma/client/client' // adjust path if needed
+import type { Prisma } from '../../.prisma/client/client' // adjust if needed
 import prisma from '../libs/prisma'
 import { snap } from '../libs/midtrans'
 import crypto from 'crypto'
@@ -39,14 +39,7 @@ export const createPayment = async (
       include: { order: true },
     })
 
-    // Cash paid → keep order in workflow; use PROCESSING or leave PENDING
-    // Only mark COMPLETED if that matches your business rules
-    if (payment.status === 'PAID') {
-      await prisma.orders.update({
-        where: { id: oId },
-        data: { status: 'PROCESSING' },
-      })
-    }
+    // Do NOT change order status on payment — staff controls workflow
 
     return res.status(201).json({
       message: 'Payment created successfully',
@@ -64,9 +57,11 @@ export const getPaymentByOrderId = async (
 ) => {
   try {
     const orderId = Number(req.params.orderId)
-    const payment = await prisma.payments.findFirst({
-      where: { orderId },
-      orderBy: { createdAt: 'desc' },
+
+    // Prefer PAID if any, else newest
+    const paid = await prisma.payments.findFirst({
+      where: { orderId, status: 'PAID' },
+      orderBy: { id: 'desc' },
       include: {
         order: {
           include: {
@@ -78,6 +73,23 @@ export const getPaymentByOrderId = async (
         },
       },
     })
+
+    const payment =
+      paid ||
+      (await prisma.payments.findFirst({
+        where: { orderId },
+        orderBy: { id: 'desc' },
+        include: {
+          order: {
+            include: {
+              customer: true,
+              vehicle: true,
+              staff: true,
+              order_items: { include: { service: true } },
+            },
+          },
+        },
+      }))
 
     if (!payment) {
       return res
@@ -116,12 +128,8 @@ export const getAllPayments = async (
 
     const where: Prisma.paymentsWhereInput = {}
 
-    if (typeof method === 'string' && method) {
-      where.method = method
-    }
-    if (typeof status === 'string' && status) {
-      where.status = status
-    }
+    if (typeof method === 'string' && method) where.method = method
+    if (typeof status === 'string' && status) where.status = status
     if (typeof search === 'string' && search) {
       where.order = {
         customer: {
@@ -224,7 +232,6 @@ export const createSnapToken = async (
 
     const transaction = await snap.createTransaction(parameter)
 
-    // Pending payment row (notes stores Midtrans order_id for webhook)
     await prisma.payments.create({
       data: {
         orderId: order.id,
@@ -268,26 +275,26 @@ export const midtransNotification = async (
       fraud_status?: string
     }
 
-    const orderId = body.order_id
+    const midtransOrderId = body.order_id
     const statusCode = body.status_code
     const grossAmount = body.gross_amount
     const signatureKey = body.signature_key
     const serverKey = process.env.MIDTRANS_SERVER_KEY || ''
 
-    if (!orderId || !statusCode || !grossAmount || !signatureKey) {
+    if (!midtransOrderId || !statusCode || !grossAmount || !signatureKey) {
       return res.status(400).json({ message: 'Invalid notification payload' })
     }
 
     const expected = crypto
       .createHash('sha512')
-      .update(`${orderId}${statusCode}${grossAmount}${serverKey}`)
+      .update(`${midtransOrderId}${statusCode}${grossAmount}${serverKey}`)
       .digest('hex')
 
     if (expected !== signatureKey) {
       return res.status(403).json({ message: 'Invalid signature' })
     }
 
-    const parts = String(orderId).split('-')
+    const parts = String(midtransOrderId).split('-')
     const ourOrderId = Number(parts[1])
     if (!ourOrderId) {
       return res.status(400).json({ message: 'Unknown order' })
@@ -302,16 +309,13 @@ export const midtransNotification = async (
       (txStatus === 'capture' && !fraud)
 
     if (isPaid) {
+      // Update payment only — leave orders.status unchanged
       await prisma.payments.updateMany({
-        where: { orderId: ourOrderId, notes: orderId },
+        where: { orderId: ourOrderId, notes: midtransOrderId },
         data: {
           status: 'PAID',
           method: body.payment_type || 'MIDTRANS',
         },
-      })
-      await prisma.orders.update({
-        where: { id: ourOrderId },
-        data: { status: 'PROCESSING' },
       })
     } else if (
       txStatus === 'expire' ||
@@ -319,7 +323,7 @@ export const midtransNotification = async (
       txStatus === 'deny'
     ) {
       await prisma.payments.updateMany({
-        where: { orderId: ourOrderId, notes: orderId },
+        where: { orderId: ourOrderId, notes: midtransOrderId },
         data: { status: 'FAILED' },
       })
     }
@@ -329,4 +333,3 @@ export const midtransNotification = async (
     next(error)
   }
 }
-

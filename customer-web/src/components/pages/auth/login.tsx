@@ -1,12 +1,12 @@
-import { useState, useEffect, type FormEvent } from 'react'
-import { useNavigate, Link } from 'react-router'
+import { useEffect, useState, type FormEvent } from 'react'
+import { Link, useNavigate } from 'react-router'
+import axios from 'axios'
 import useAuth from '../../../hooks/useAuth'
 import manWashingCar1 from '../../../assets/img/bg/manwashingacar.jpeg'
 import manWashingCar2 from '../../../assets/img/bg/manwashingcar2.jpeg'
 import manWashingCar3 from '../../../assets/img/bg/manwashingcar3.jpeg'
 import manWashingCar4 from '../../../assets/img/bg/manwashingcar4.jpeg'
 import manWashingCar5 from '../../../assets/img/bg/manwashingcar5.jpeg'
-import axios from 'axios'
 
 const bgImages = [
   manWashingCar1,
@@ -17,136 +17,154 @@ const bgImages = [
 ]
 
 const Login = () => {
+  const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [currentBg, setCurrentBg] = useState(0)
-  const navigate = useNavigate()
+  const [bg, setBg] = useState(0)
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentBg((prev) => (prev + 1) % bgImages.length)
-    }, 4000)
-    return () => clearInterval(interval)
+    const t = setInterval(() => setBg((i) => (i + 1) % bgImages.length), 4000)
+    return () => clearInterval(t)
   }, [])
 
-  const handleSubmit = async (e: FormEvent) => {
+  const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    setLoading(true)
     setError('')
-
+    setLoading(true)
     try {
-      await useAuth.login(email, password)
+      await useAuth.login(email.trim(), password)
       navigate('/dashboard', { replace: true })
     } catch (err: unknown) {
-      if (axios.isAxiosError(err)) {
-        setError(err.response?.data?.message || 'Login failed.')
-      } else {
-        setError('Login failed.')
-      }
+      setError(
+        axios.isAxiosError(err)
+          ? err.response?.data?.message || 'Wrong email or password.'
+          : 'Something went wrong. Please try again.'
+      )
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
-      {bgImages.map((img, i) => (
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden">
+      {bgImages.map((src, i) => (
         <div
           key={i}
           className="absolute inset-0 bg-cover bg-center transition-opacity duration-1000"
-          style={{
-            backgroundImage: `url(${img})`,
-            opacity: i === currentBg ? 1 : 0,
-          }}
+          style={{ backgroundImage: `url(${src})`, opacity: i === bg ? 1 : 0 }}
         />
       ))}
+      <div className="absolute inset-0 bg-slate-950/70" />
 
-      <div className="absolute inset-0 bg-black/60" />
-
-      <div className="relative z-10 w-full max-w-md px-4">
-        <div className="card bg-base-100/95 backdrop-blur shadow-2xl">
-          <div className="card-body p-6 sm:p-8">
-            <div className="text-center mb-6">
-              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-primary text-primary-content flex items-center justify-center mx-auto mb-3 shadow-lg">
-                <span className="material-icons text-2xl sm:text-3xl">
-                  directions_car
-                </span>
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-bold">WASHINGTON</h1>
-              <p className="text-sm opacity-60 mt-1">Car Wash Management System</p>
+      <div className="relative z-10 w-full max-w-md px-4 py-8">
+        <div className="rounded-2xl border border-white/10 bg-slate-900/90 p-6 shadow-2xl backdrop-blur-md sm:p-8">
+          <div className="mb-6 text-center">
+            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-linear-to-br from-teal-400 to-teal-700 shadow-lg shadow-teal-900/40">
+              <span className="material-icons text-3xl text-white">
+                local_car_wash
+              </span>
             </div>
-
-            {error && (
-              <div role="alert" className="alert alert-error text-sm mb-4">
-                <span className="material-icons text-lg">error</span>
-                <span>{error}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text font-semibold">Email</span>
-                </label>
-                <input
-                  type="email"
-                  className="input input-bordered rounded-xl"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text font-semibold">Password</span>
-                </label>
-                <input
-                  type="password"
-                  className="input input-bordered rounded-xl"
-                  placeholder="Insert your password here"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="btn btn-primary rounded-xl mt-2"
-                disabled={loading}
-              >
-                {loading ? (
-                  <>
-                    <span className="loading loading-spinner loading-sm" />
-                    Signing in...
-                  </>
-                ) : (
-                  'Sign in'
-                )}
-              </button>
-            </form>
-
-            <p className="text-center text-sm mt-5 opacity-70">
-              Don&apos;t have an account?{' '}
-              <Link to="/register" className="link link-primary font-semibold">
-                Register
-              </Link>
+            <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
+              WASHINGTON
+            </h1>
+            <p className="mt-1 text-sm text-slate-400">
+              Sign in to book your next wash
             </p>
           </div>
+
+          {error && (
+            <div
+              role="alert"
+              className="mb-4 flex items-start gap-2 rounded-xl bg-red-500/15 px-3 py-2.5 text-sm text-red-300"
+            >
+              <span className="material-icons mt-0.5 text-lg">error_outline</span>
+              <span>{error}</span>
+            </div>
+          )}
+
+          <form onSubmit={onSubmit} className="space-y-4">
+            <div>
+              <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-slate-300">
+                Email
+              </label>
+              <input
+                id="email"
+                type="email"
+                autoComplete="email"
+                autoFocus
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@email.com"
+                className="input input-bordered w-full rounded-xl border-slate-700 bg-slate-950 text-white placeholder:text-slate-600 focus:border-teal-500 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-slate-300">
+                Password
+              </label>
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  required
+                  minLength={6}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Your password"
+                  className="input input-bordered w-full rounded-xl border-slate-700 bg-slate-950 pr-12 text-white placeholder:text-slate-600 focus:border-teal-500 focus:outline-none"
+                />
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-500 hover:text-slate-300"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  <span className="material-icons text-xl">
+                    {showPassword ? 'visibility_off' : 'visibility'}
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading || !email || !password}
+              className="btn mt-1 w-full rounded-xl border-0 bg-teal-600 text-white hover:bg-teal-500 disabled:bg-slate-700"
+            >
+              {loading ? (
+                <>
+                  <span className="loading loading-spinner loading-sm" />
+                  Signing in…
+                </>
+              ) : (
+                'Sign in'
+              )}
+            </button>
+          </form>
+
+          <p className="mt-6 text-center text-sm text-slate-400">
+            New here?{' '}
+            <Link to="/register" className="font-semibold text-teal-400 hover:text-teal-300">
+              Create an account
+            </Link>
+          </p>
         </div>
 
-        <div className="flex justify-center gap-2 mt-5">
+        <div className="mt-5 flex justify-center gap-2">
           {bgImages.map((_, i) => (
             <button
               key={i}
               type="button"
-              onClick={() => setCurrentBg(i)}
+              aria-label={`Background ${i + 1}`}
+              onClick={() => setBg(i)}
               className={`h-2 rounded-full transition-all ${
-                i === currentBg ? 'w-6 bg-white' : 'w-2 bg-white/50'
+                i === bg ? 'w-6 bg-white' : 'w-2 bg-white/40 hover:bg-white/70'
               }`}
             />
           ))}

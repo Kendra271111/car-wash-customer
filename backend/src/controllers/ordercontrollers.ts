@@ -209,7 +209,7 @@ export const getOrderById = async (
             service: true,
           },
         },
-        payements: true,
+       payements: { orderBy: { id: 'desc' } },
       },
     });
 
