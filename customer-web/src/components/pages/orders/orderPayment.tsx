@@ -1,5 +1,5 @@
 // src/components/pages/orders/orderPayment.tsx
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import axios from 'axios'
 import useOrders, { type Order } from '../../../hooks/useOrder'
@@ -7,8 +7,14 @@ import usePayment from '../../../hooks/usePayment'
 import { loadSnap } from '../../../libs/midtrans'
 import { api } from '../../../api/api'
 
-const METHODS = ['QRIS', 'E-MONEY', 'TRANSFER', 'CASH'] as const
+const METHODS = [
+  { id: 'QRIS', label: 'QRIS', icon: 'qr_code_2', hint: 'Scan & pay' },
+  { id: 'E-MONEY', label: 'E-Money', icon: 'account_balance_wallet', hint: 'Digital wallet' },
+  { id: 'TRANSFER', label: 'Transfer', icon: 'account_balance', hint: 'Bank transfer' },
+  { id: 'CASH', label: 'Cash', icon: 'payments', hint: 'Pay at counter' },
+] as const
 
+type MethodId = (typeof METHODS)[number]['id']
 type PaymentRow = { id?: number; status?: string; method?: string }
 
 type SnapWindow = Window & {
@@ -38,14 +44,14 @@ const paymentsOf = (order: Order | null): PaymentRow[] => {
   return o.payments ?? o.payements ?? []
 }
 
-const isPaid = (order: Order | null) =>
+const orderIsPaid = (order: Order | null) =>
   paymentsOf(order).some((p) => String(p.status).toUpperCase() === 'PAID')
 
-async function poll(
+async function pollUntil(
   check: () => Promise<boolean>,
   attempts = 12,
   delayMs = 1500
-): Promise<boolean> {
+) {
   for (let i = 0; i < attempts; i++) {
     if (await check()) return true
     await new Promise((r) => setTimeout(r, delayMs))
@@ -61,17 +67,29 @@ const OrderPayment = () => {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState(false)
-  const [method, setMethod] = useState<string>('QRIS')
+  const [method, setMethod] = useState<MethodId>('QRIS')
   const [received, setReceived] = useState('')
   const [notes, setNotes] = useState('')
 
   const total =
     order?.order_items?.reduce((s, i) => s + Number(i.subtotal || 0), 0) ?? 0
   const change = Number(received || 0) - total
-  const paid = isPaid(order)
+  const paid = orderIsPaid(order)
 
-  const load = async () => {
+  const vehicleLabel = order?.vehicle
+    ? [
+        order.vehicle.plateNumber,
+        order.vehicle.brand,
+        order.vehicle.model,
+        order.vehicle.name,
+      ]
+        .filter(Boolean)
+        .join(' · ') || `Vehicle #${order.vehicleId}`
+    : order
+      ? `Vehicle #${order.vehicleId}`
+      : '—'
+
+  const refreshOrder = async () => {
     if (!id) return null
     const data = await useOrders.fetchOrderById(id)
     setOrder(data)
@@ -101,26 +119,25 @@ const OrderPayment = () => {
     }
   }, [id])
 
-  const confirmPaid = async () => {
-    return poll(async () => {
+  const waitForPaid = () =>
+    pollUntil(async () => {
       try {
         const { data } = await api.get(`/payments/order/${id}`)
         if (String(data?.data?.status || '').toUpperCase() === 'PAID') {
-          await load()
+          await refreshOrder()
           return true
         }
       } catch {
-        /* unpaid / 404 */
+        /* ignore */
       }
-      const latest = await load()
-      return isPaid(latest)
+      const latest = await refreshOrder()
+      return orderIsPaid(latest)
     })
-  }
 
   const payCash = async () => {
     if (!id) return
     if (!received || Number(received) < total) {
-      setError('Amount received must be at least the total.')
+      setError('Amount received must cover the total.')
       return
     }
     setBusy(true)
@@ -132,10 +149,9 @@ const OrderPayment = () => {
         change: Math.max(change, 0),
         method: 'CASH',
         status: 'PAID',
-        notes: notes || undefined,
+        notes: notes.trim() || undefined,
       })
-      setSuccess(true)
-      await load()
+      await refreshOrder()
       navigate(`/orders/${id}`, { replace: true })
     } catch (err: unknown) {
       setError(
@@ -158,19 +174,18 @@ const OrderPayment = () => {
         orderId: Number(id),
       })
       const token = data?.data?.token || data?.token
-      if (!token) throw new Error('No Snap token')
+      if (!token) throw new Error('No Snap token from server.')
 
       const snap = (window as SnapWindow).snap
-      if (!snap) throw new Error('Snap.js not loaded')
+      if (!snap) throw new Error('Midtrans Snap failed to load.')
 
       snap.pay(token, {
         onSuccess: () => {
           void (async () => {
-            setSuccess(true)
-            const ok = await confirmPaid()
+            const ok = await waitForPaid()
             if (!ok) {
               setError(
-                'Payment submitted. Waiting for confirmation — ensure Midtrans webhook URL is reachable.'
+                'Payment sent. If status stays unpaid, check that the Midtrans webhook URL is public.'
               )
             }
             setBusy(false)
@@ -179,13 +194,13 @@ const OrderPayment = () => {
         },
         onPending: () => {
           void (async () => {
-            setError('Payment pending. Status updates when Midtrans confirms.')
-            await confirmPaid()
+            setError('Payment is pending. We will update when Midtrans confirms.')
+            await waitForPaid()
             setBusy(false)
           })()
         },
         onError: () => {
-          setError('Payment failed.')
+          setError('Payment failed in Midtrans.')
           setBusy(false)
         },
         onClose: () => setBusy(false),
@@ -214,7 +229,7 @@ const OrderPayment = () => {
   if (loading) {
     return (
       <Shell id={id}>
-        <div className="flex flex-col items-center py-16">
+        <div className="flex justify-center py-24">
           <span className="loading loading-spinner loading-lg text-teal-400" />
         </div>
       </Shell>
@@ -224,9 +239,9 @@ const OrderPayment = () => {
   if (!order) {
     return (
       <Shell id={id}>
-        <Alert tone="error">{error || 'Order not found.'}</Alert>
-        <Link to="/orders" className="btn btn-sm mt-4 rounded-xl bg-slate-800">
-          Back
+        <Banner tone="error">{error || 'Order not found.'}</Banner>
+        <Link to="/orders" className="btn mt-4 w-full rounded-xl bg-slate-800">
+          Back to orders
         </Link>
       </Shell>
     )
@@ -234,140 +249,182 @@ const OrderPayment = () => {
 
   return (
     <Shell id={id}>
-      {paid && <Alert tone="ok">This order is paid.</Alert>}
-      {success && !paid && <Alert tone="ok">Payment successful.</Alert>}
-      {error && <Alert tone="error">{error}</Alert>}
+      {error && <Banner tone="error">{error}</Banner>}
 
-      <Card>
-        <Row label="Status" value={paid ? 'PAID' : 'UNPAID'} highlight={paid} />
-        <Row
-          label="Customer"
-          value={order.customer?.name || `Customer #${order.customerId}`}
-        />
-        <Row
-          label="Vehicle"
-          value={
-            order.vehicle
-              ? `${order.vehicle.brand || ''} ${order.vehicle.model || ''}`.trim() ||
-                order.vehicle.plateNumber ||
-                '—'
-              : `Vehicle #${order.vehicleId}`
-          }
-        />
-      </Card>
-
-      <Card title="Services">
-        {(order.order_items || []).map((item, i) => (
-          <div
-            key={item.id ?? i}
-            className="mb-2 flex justify-between border-b border-slate-800 pb-2 last:mb-0 last:border-0"
+      {/* Status strip */}
+      <div
+        className={`mb-4 flex items-center justify-between rounded-2xl border px-4 py-3 ${
+          paid
+            ? 'border-emerald-500/30 bg-emerald-500/10'
+            : 'border-amber-500/30 bg-amber-500/10'
+        }`}
+      >
+        <div className="flex items-center gap-2">
+          <span
+            className={`material-icons text-xl ${
+              paid ? 'text-emerald-400' : 'text-amber-400'
+            }`}
           >
-            <div>
-              <p className="text-sm">
-                {(item as { service?: { name?: string } }).service?.name ||
-                  `Service #${item.serviceId}`}
-              </p>
-              <p className="text-xs text-slate-500">
-                {item.duration || 0} min · qty {item.qty || 1}
-              </p>
-            </div>
-            <p className="text-sm font-medium">{formatRp(Number(item.subtotal || 0))}</p>
+            {paid ? 'verified' : 'pending'}
+          </span>
+          <div>
+            <p className="text-sm font-semibold">
+              {paid ? 'Paid' : 'Awaiting payment'}
+            </p>
+            <p className="text-xs text-slate-400">Order #{id}</p>
           </div>
-        ))}
-        <div className="mt-3 flex justify-between border-t border-slate-800 pt-3">
-          <span className="font-bold">TOTAL</span>
-          <span className="font-bold text-teal-400">{formatRp(total)}</span>
         </div>
-      </Card>
+        <p className="text-lg font-bold text-teal-400">{formatRp(total)}</p>
+      </div>
 
+      {/* Summary */}
+      <section className="mb-4 rounded-2xl border border-slate-800 bg-slate-900 p-4">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Summary
+        </p>
+        <div className="space-y-2 text-sm">
+          <div className="flex justify-between gap-3">
+            <span className="text-slate-500">Customer</span>
+            <span className="text-right font-medium">
+              {order.customer?.name || `Customer #${order.customerId}`}
+            </span>
+          </div>
+          <div className="flex justify-between gap-3">
+            <span className="text-slate-500">Vehicle</span>
+            <span className="text-right font-medium">{vehicleLabel}</span>
+          </div>
+        </div>
+
+        <div className="my-4 border-t border-slate-800" />
+
+        <ul className="space-y-3">
+          {(order.order_items || []).map((item, i) => (
+            <li key={item.id ?? i} className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium">
+                  {(item as { service?: { name?: string } }).service?.name ||
+                    `Service #${item.serviceId}`}
+                </p>
+                <p className="text-xs text-slate-500">
+                  {item.duration || 0} min · qty {item.qty || 1}
+                </p>
+              </div>
+              <p className="shrink-0 text-sm font-medium">
+                {formatRp(Number(item.subtotal || 0))}
+              </p>
+            </li>
+          ))}
+        </ul>
+
+        <div className="mt-4 flex items-center justify-between border-t border-slate-800 pt-3">
+          <span className="text-sm font-semibold text-slate-300">Total</span>
+          <span className="text-xl font-bold text-teal-400">{formatRp(total)}</span>
+        </div>
+      </section>
+
+      {/* Methods */}
       {!paid && (
-        <Card title="Pay">
-          <div className="mb-4 flex flex-wrap gap-2">
-            {METHODS.map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => setMethod(m)}
-                className={`rounded-xl px-3 py-2 text-sm font-medium ${
-                  method === m
-                    ? 'bg-teal-600 text-white'
-                    : 'border border-slate-700 bg-slate-950 text-slate-300'
-                }`}
-              >
-                {m}
-              </button>
-            ))}
+        <section className="mb-4 rounded-2xl border border-slate-800 bg-slate-900 p-4">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Payment method
+          </p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {METHODS.map((m) => {
+              const active = method === m.id
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => setMethod(m.id)}
+                  className={`flex flex-col items-center gap-1 rounded-xl border px-2 py-3 transition ${
+                    active
+                      ? 'border-teal-500 bg-teal-500/15 text-teal-300'
+                      : 'border-slate-700 bg-slate-950 text-slate-400 hover:border-slate-600'
+                  }`}
+                >
+                  <span className="material-icons text-2xl">{m.icon}</span>
+                  <span className="text-xs font-semibold">{m.label}</span>
+                  <span className="text-[10px] opacity-70">{m.hint}</span>
+                </button>
+              )
+            })}
           </div>
 
           {method === 'CASH' ? (
-            <>
-              <label className="mb-1 block text-sm text-slate-400">Amount received</label>
-              <input
-                type="number"
-                className="input input-bordered mb-3 w-full rounded-xl border-slate-700 bg-slate-950"
-                value={received}
-                onChange={(e) => setReceived(e.target.value)}
-              />
-              <div className="mb-3 flex justify-between text-sm">
-                <span className="text-slate-400">Change</span>
-                <span className="font-bold text-emerald-400">
+            <div className="mt-4 space-y-3">
+              <div>
+                <label className="mb-1 block text-sm text-slate-400">
+                  Amount received
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  className="input input-bordered w-full rounded-xl border-slate-700 bg-slate-950"
+                  placeholder={String(total)}
+                  value={received}
+                  onChange={(e) => setReceived(e.target.value)}
+                />
+              </div>
+              <div className="flex items-center justify-between rounded-xl bg-slate-950 px-3 py-2 text-sm">
+                <span className="text-slate-500">Change</span>
+                <span className="font-semibold text-emerald-400">
                   {formatRp(Math.max(change, 0))}
                 </span>
               </div>
               <textarea
                 className="textarea textarea-bordered w-full rounded-xl border-slate-700 bg-slate-950"
-                placeholder="Notes (optional)"
                 rows={2}
+                placeholder="Notes (optional)"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
               />
-            </>
+            </div>
           ) : (
-            <p className="rounded-xl border border-dashed border-teal-600/40 bg-teal-500/10 p-4 text-center text-sm text-teal-100">
-              Pay with Midtrans ({method}). Paid status is set by the server webhook — no
-              admin approval.
+            <p className="mt-4 rounded-xl bg-slate-950/80 px-3 py-3 text-center text-xs leading-relaxed text-slate-400">
+              Opens Midtrans for <span className="text-teal-300">{method}</span>.
+              Paid status updates automatically via webhook — no staff approval.
             </p>
           )}
-        </Card>
+        </section>
       )}
 
-      <button
-        type="button"
-        disabled={busy}
-        onClick={onPay}
-        className="btn mb-2 w-full rounded-xl border-0 bg-indigo-500 text-white"
-      >
-        {busy ? (
-          <span className="loading loading-spinner loading-sm" />
-        ) : paid ? (
-          'View order'
-        ) : method === 'CASH' ? (
-          'Mark as Paid'
-        ) : (
-          'Pay with Midtrans'
-        )}
-      </button>
-      <Link
-        to={`/orders/${id}`}
-        className="btn w-full rounded-xl border border-slate-700 bg-transparent text-slate-300"
-      >
-        Cancel
-      </Link>
+      {paid && (
+        <Banner tone="ok">This order is already paid. You can go back to the order.</Banner>
+      )}
+
+      <div className="sticky bottom-0 -mx-4 border-t border-slate-800 bg-slate-950/95 px-4 py-3 backdrop-blur">
+        <button
+          type="button"
+          disabled={busy}
+          onClick={onPay}
+          className="btn mb-2 w-full rounded-xl border-0 bg-teal-600 text-white hover:bg-teal-500"
+        >
+          {busy ? (
+            <span className="loading loading-spinner loading-sm" />
+          ) : paid ? (
+            'Back to order'
+          ) : method === 'CASH' ? (
+            `Mark paid · ${formatRp(total)}`
+          ) : (
+            `Pay ${formatRp(total)}`
+          )}
+        </button>
+        <Link
+          to={`/orders/${id}`}
+          className="btn w-full rounded-xl border border-slate-700 bg-transparent text-slate-300"
+        >
+          Cancel
+        </Link>
+      </div>
     </Shell>
   )
 }
 
-function Shell({
-  id,
-  children,
-}: {
-  id?: string
-  children: React.ReactNode
-}) {
+function Shell({ id, children }: { id?: string; children: ReactNode }) {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <header className="sticky top-0 z-30 border-b border-slate-800 bg-slate-950/95 backdrop-blur">
-        <div className="mx-auto flex h-14 max-w-3xl items-center gap-2 px-4">
+        <div className="mx-auto flex h-14 max-w-lg items-center gap-2 px-4">
           <Link
             to={`/orders/${id}`}
             className="btn btn-ghost btn-sm btn-circle text-slate-300"
@@ -375,68 +432,34 @@ function Shell({
             <span className="material-icons">arrow_back</span>
           </Link>
           <div>
-            <h1 className="text-lg font-bold leading-tight">Payment</h1>
-            <p className="text-xs text-slate-500">Order #{id}</p>
+            <h1 className="text-lg font-bold leading-tight">Checkout</h1>
+            <p className="text-xs text-slate-500">Secure payment</p>
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-3xl px-4 py-5">{children}</main>
+      <main className="mx-auto max-w-lg px-4 py-5 pb-8">{children}</main>
     </div>
   )
 }
 
-function Card({
-  title,
-  children,
-}: {
-  title?: string
-  children: React.ReactNode
-}) {
-  return (
-    <section className="mb-4 rounded-2xl border border-slate-800 bg-slate-900 p-4">
-      {title && <h2 className="mb-3 text-sm font-semibold">{title}</h2>}
-      {children}
-    </section>
-  )
-}
-
-function Row({
-  label,
-  value,
-  highlight,
-}: {
-  label: string
-  value: string
-  highlight?: boolean
-}) {
-  return (
-    <div className="mb-2 flex justify-between gap-2 text-sm last:mb-0">
-      <span className="text-slate-500">{label}</span>
-      <span className={highlight ? 'font-semibold text-emerald-400' : 'text-right'}>
-        {value}
-      </span>
-    </div>
-  )
-}
-
-function Alert({
+function Banner({
   tone,
   children,
 }: {
   tone: 'ok' | 'error'
-  children: React.ReactNode
+  children: ReactNode
 }) {
   const ok = tone === 'ok'
   return (
     <div
-      className={`mb-4 flex items-center gap-2 rounded-xl p-3 text-sm ${
-        ok ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300'
+      className={`mb-4 flex items-start gap-2 rounded-xl p-3 text-sm ${
+        ok ? 'bg-emerald-500/15 text-emerald-300' : 'bg-red-500/15 text-red-300'
       }`}
     >
-      <span className="material-icons text-base">
+      <span className="material-icons text-lg">
         {ok ? 'check_circle' : 'error_outline'}
       </span>
-      {children}
+      <span>{children}</span>
     </div>
   )
 }
