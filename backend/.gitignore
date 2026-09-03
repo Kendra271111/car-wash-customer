@@ -23,13 +23,7 @@ dist-ssr
 *.sln
 *.sw?
 .env
-<<<<<<< HEAD
-<<<<<<< HEAD
 *.env
 *.env*
 !.env.example
-=======
->>>>>>> 8d99a30d77f3a4217281114a4054f4e540d46b36
-=======
->>>>>>> 8d99a30d77f3a4217281114a4054f4e540d46b36
 /src/generated/prisma
