@@ -1,4 +1,5 @@
 // src/components/pages/auth/register.tsx
+// src/components/pages/auth/register.tsx
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
 import axios from 'axios'
@@ -59,12 +60,15 @@ const Register = () => {
 
   useEffect(() => {
     const t = setInterval(() => setBg((i) => (i + 1) % bgImages.length), 5000)
+    const t = setInterval(() => setBg((i) => (i + 1) % bgImages.length), 5000)
     return () => clearInterval(t)
   }, [])
 
   const passwordsMatch = !confirm || password === confirm
   const phoneDigits = phone.replace(/\D/g, '')
   const canSubmit =
+    !!name.trim() &&
+    !!email.trim() &&
     !!name.trim() &&
     !!email.trim() &&
     phoneDigits.length >= 8 &&
@@ -97,6 +101,12 @@ const Register = () => {
         password,
         Number(phoneDigits)
       )
+      await useAuth.register(
+        name.trim(),
+        email.trim(),
+        password,
+        Number(phoneDigits)
+      )
       navigate('/login', { replace: true })
     } catch (err: unknown) {
       setError(
@@ -108,6 +118,8 @@ const Register = () => {
       setLoading(false)
     }
   }
+
+  const caption = CAPTIONS[bg % CAPTIONS.length]
 
   const caption = CAPTIONS[bg % CAPTIONS.length]
 
@@ -143,6 +155,7 @@ const Register = () => {
             )}
 
             <form onSubmit={onSubmit} className="mt-6 space-y-3">
+            <form onSubmit={onSubmit} className="mt-6 space-y-3">
               <input
                 type="text"
                 autoComplete="name"
@@ -150,6 +163,8 @@ const Register = () => {
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                placeholder="Full name"
+                className={fieldClass}
                 placeholder="Full name"
                 className={fieldClass}
               />
@@ -161,6 +176,8 @@ const Register = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Email address"
                 className={fieldClass}
+                placeholder="Email address"
+                className={fieldClass}
               />
               <input
                 type="tel"
@@ -168,6 +185,8 @@ const Register = () => {
                 required
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
+                placeholder="Phone (08xxxxxxxxxx)"
+                className={fieldClass}
                 placeholder="Phone (08xxxxxxxxxx)"
                 className={fieldClass}
               />
@@ -182,10 +201,12 @@ const Register = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Password (min. 6 characters)"
                   className={`${fieldClass} pr-12`}
+                  placeholder="Password (min. 6 characters)"
+                  className={`${fieldClass} pr-12`}
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-500 hover:text-slate-300"
+                  className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 hover:text-slate-600"
                   onClick={() => setShowPass((v) => !v)}
                   aria-label={showPass ? 'Hide password' : 'Show password'}
                 >
@@ -193,6 +214,7 @@ const Register = () => {
                     {showPass ? 'visibility_off' : 'visibility'}
                   </span>
                 </button>
+              </div>
               </div>
 
               <div className="relative">
@@ -210,7 +232,7 @@ const Register = () => {
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-500 hover:text-slate-300"
+                  className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 hover:text-slate-600"
                   onClick={() => setShowConfirm((v) => !v)}
                   aria-label={showConfirm ? 'Hide password' : 'Show password'}
                 >
@@ -230,6 +252,11 @@ const Register = () => {
               >
                 {loading ? (
                   <span className="loading loading-spinner loading-sm" />
+                ) : (
+                  'Create account'
+                )}
+              </button>
+            </form>
                 ) : (
                   'Create account'
                 )}

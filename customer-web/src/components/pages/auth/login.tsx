@@ -1,4 +1,5 @@
 // src/components/pages/auth/login.tsx
+// src/components/pages/auth/login.tsx
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
 import axios from 'axios'
@@ -54,6 +55,7 @@ const Login = () => {
 
   useEffect(() => {
     const t = setInterval(() => setBg((i) => (i + 1) % bgImages.length), 5000)
+    const t = setInterval(() => setBg((i) => (i + 1) % bgImages.length), 5000)
     return () => clearInterval(t)
   }, [])
 
@@ -74,6 +76,8 @@ const Login = () => {
       setLoading(false)
     }
   }
+
+  const caption = CAPTIONS[bg % CAPTIONS.length]
 
   const caption = CAPTIONS[bg % CAPTIONS.length]
 
@@ -137,7 +141,7 @@ const Login = () => {
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-500 hover:text-slate-300"
+                  className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 hover:text-slate-600"
                   onClick={() => setShowPassword((v) => !v)}
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
@@ -145,6 +149,7 @@ const Login = () => {
                     {showPassword ? 'visibility_off' : 'visibility'}
                   </span>
                 </button>
+              </div>
               </div>
 
               <button
@@ -154,6 +159,11 @@ const Login = () => {
               >
                 {loading ? (
                   <span className="loading loading-spinner loading-sm" />
+                ) : (
+                  'Sign in'
+                )}
+              </button>
+            </form>
                 ) : (
                   'Sign in'
                 )}
