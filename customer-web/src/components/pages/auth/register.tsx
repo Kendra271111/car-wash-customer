@@ -28,7 +28,7 @@ const CAPTIONS = [
   },
   {
     title: 'Track every wash',
-    text: 'From waiting to in progress to completed — all in one place.',
+    text: 'From waiting to in progress to completed. All in one place.',
   },
   {
     title: 'Pay how you like',

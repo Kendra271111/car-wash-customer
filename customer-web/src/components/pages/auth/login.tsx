@@ -24,11 +24,11 @@ const CAPTIONS = [
   },
   {
     title: 'Shine that lasts',
-    text: 'From basic wash to full detailing — pick the service that fits.',
+    text: 'From basic wash to full detailing. Pick the service that fits.',
   },
   {
     title: 'Pay your way',
-    text: 'QRIS, transfer, e-money, or cash — checkout when you are ready.',
+    text: 'QRIS, transfer, e-money, or cash. Checkout when you are ready.',
   },
   {
     title: 'Save your vehicles',
