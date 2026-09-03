@@ -45,7 +45,7 @@ Customers can register, manage vehicles, book wash services, pay online (Midtran
 
 ---
 
-## Project structure (typical)
+## Project structure
 
 ```text
 car-wash-customer/
