@@ -9,7 +9,7 @@ type Options = {
 
 export function useRealtimeRefresh({ tables, onChange}: Options) {
   const onChangeRef = useRef(onChange)
-  const tablesKey = tables.join(',')
+  const tablesKey = tables.join(',') 
 
   // Keep callback fresh without putting it in the subscribe effect deps
   useEffect(() => {
@@ -17,14 +17,14 @@ export function useRealtimeRefresh({ tables, onChange}: Options) {
   }, [onChange])
 
   useEffect(() => {
-  const channel = supabase.channel(`dashboard-${tablesKey}`)
+  const channel = supabase.channel(`dashboard-${tablesKey}`) 
 
   for (const table of tables) {
     channel.on(
       'postgres_changes',
       { event: '*', schema: 'public', table },
       (payload) => {
-        console.log('[realtime]', table, payload.eventType, payload)
+        console.log('[realtime]', table, payload.eventType, payload) 
         onChangeRef.current(table, payload)
       }
     )

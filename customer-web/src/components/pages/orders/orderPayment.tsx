@@ -1,20 +1,17 @@
 // src/components/pages/orders/orderPayment.tsx
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import axios from 'axios'
 import useOrders, { type Order } from '../../../hooks/useOrder'
-import usePayment from '../../../hooks/usePayment'
 import { loadSnap } from '../../../libs/midtrans'
 import { api } from '../../../api/api'
 
 const METHODS = [
-  { id: 'QRIS', label: 'QRIS', icon: 'qr_code_2', hint: 'Scan & pay' },
-  { id: 'E-MONEY', label: 'E-Money', icon: 'account_balance_wallet', hint: 'Digital wallet' },
+  { id: 'QRIS', label: 'QRIS', icon: 'qr_code_2', hint: 'Scan QR at checkout' },
+  { id: 'E-MONEY', label: 'E-Money', icon: 'account_balance_wallet', hint: 'GoPay, OVO, etc.' },
   { id: 'TRANSFER', label: 'Transfer', icon: 'account_balance', hint: 'Bank transfer' },
-  { id: 'CASH', label: 'Cash', icon: 'payments', hint: 'Pay at counter' },
 ] as const
 
-type MethodId = (typeof METHODS)[number]['id']
 type PaymentRow = { id?: number; status?: string; method?: string }
 
 type SnapWindow = Window & {
@@ -44,10 +41,10 @@ const paymentsOf = (order: Order | null): PaymentRow[] => {
   return o.payments ?? o.payements ?? []
 }
 
-const orderIsPaid = (order: Order | null) =>
+const isPaid = (order: Order | null) =>
   paymentsOf(order).some((p) => String(p.status).toUpperCase() === 'PAID')
 
-async function pollUntil(
+async function pollUntilPaid(
   check: () => Promise<boolean>,
   attempts = 12,
   delayMs = 1500
@@ -67,29 +64,14 @@ const OrderPayment = () => {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [method, setMethod] = useState<MethodId>('QRIS')
-  const [received, setReceived] = useState('')
-  const [notes, setNotes] = useState('')
+  const [method, setMethod] = useState<string>('QRIS')
 
   const total =
     order?.order_items?.reduce((s, i) => s + Number(i.subtotal || 0), 0) ?? 0
-  const change = Number(received || 0) - total
-  const paid = orderIsPaid(order)
+  const paid = isPaid(order)
+  const selected = METHODS.find((m) => m.id === method) ?? METHODS[0]
 
-  const vehicleLabel = order?.vehicle
-    ? [
-        order.vehicle.plateNumber,
-        order.vehicle.brand,
-        order.vehicle.model,
-        order.vehicle.name,
-      ]
-        .filter(Boolean)
-        .join(' · ') || `Vehicle #${order.vehicleId}`
-    : order
-      ? `Vehicle #${order.vehicleId}`
-      : '—'
-
-  const refreshOrder = async () => {
+  const refresh = async () => {
     if (!id) return null
     const data = await useOrders.fetchOrderById(id)
     setOrder(data)
@@ -119,53 +101,22 @@ const OrderPayment = () => {
     }
   }, [id])
 
-  const waitForPaid = () =>
-    pollUntil(async () => {
+  const confirmPaid = () =>
+    pollUntilPaid(async () => {
       try {
         const { data } = await api.get(`/payments/order/${id}`)
         if (String(data?.data?.status || '').toUpperCase() === 'PAID') {
-          await refreshOrder()
+          await refresh()
           return true
         }
       } catch {
         /* ignore */
       }
-      const latest = await refreshOrder()
-      return orderIsPaid(latest)
+      return isPaid(await refresh())
     })
 
-  const payCash = async () => {
-    if (!id) return
-    if (!received || Number(received) < total) {
-      setError('Amount received must cover the total.')
-      return
-    }
-    setBusy(true)
-    setError(null)
-    try {
-      await usePayment.createPayment({
-        orderId: Number(id),
-        amount: total,
-        change: Math.max(change, 0),
-        method: 'CASH',
-        status: 'PAID',
-        notes: notes.trim() || undefined,
-      })
-      await refreshOrder()
-      navigate(`/orders/${id}`, { replace: true })
-    } catch (err: unknown) {
-      setError(
-        axios.isAxiosError(err)
-          ? err.response?.data?.message || 'Payment failed.'
-          : 'Payment failed.'
-      )
-    } finally {
-      setBusy(false)
-    }
-  }
-
   const payMidtrans = async () => {
-    if (!id) return
+    if (!id || paid) return
     setBusy(true)
     setError(null)
     try {
@@ -174,18 +125,18 @@ const OrderPayment = () => {
         orderId: Number(id),
       })
       const token = data?.data?.token || data?.token
-      if (!token) throw new Error('No Snap token from server.')
+      if (!token) throw new Error('No Snap token from server')
 
       const snap = (window as SnapWindow).snap
-      if (!snap) throw new Error('Midtrans Snap failed to load.')
+      if (!snap) throw new Error('Midtrans Snap failed to load')
 
       snap.pay(token, {
         onSuccess: () => {
           void (async () => {
-            const ok = await waitForPaid()
+            const ok = await confirmPaid()
             if (!ok) {
               setError(
-                'Payment sent. If status stays unpaid, check that the Midtrans webhook URL is public.'
+                'Payment sent. Waiting for Midtrans confirmation — check webhook URL if this stays unpaid.'
               )
             }
             setBusy(false)
@@ -194,13 +145,13 @@ const OrderPayment = () => {
         },
         onPending: () => {
           void (async () => {
-            setError('Payment is pending. We will update when Midtrans confirms.')
-            await waitForPaid()
+            setError('Payment pending. Status will update when confirmed.')
+            await confirmPaid()
             setBusy(false)
           })()
         },
         onError: () => {
-          setError('Payment failed in Midtrans.')
+          setError('Payment failed. Try again.')
           setBusy(false)
         },
         onClose: () => setBusy(false),
@@ -208,127 +159,118 @@ const OrderPayment = () => {
     } catch (err: unknown) {
       setError(
         axios.isAxiosError(err)
-          ? err.response?.data?.message || 'Could not start Midtrans.'
+          ? err.response?.data?.message || 'Could not open payment.'
           : err instanceof Error
             ? err.message
-            : 'Could not start Midtrans.'
+            : 'Could not open payment.'
       )
       setBusy(false)
     }
   }
 
-  const onPay = () => {
-    if (paid) {
-      navigate(`/orders/${id}`, { replace: true })
-      return
-    }
-    if (method === 'CASH') void payCash()
-    else void payMidtrans()
-  }
-
   if (loading) {
     return (
-      <Shell id={id}>
-        <div className="flex justify-center py-24">
+      <Page id={id}>
+        <div className="flex justify-center py-20">
           <span className="loading loading-spinner loading-lg text-teal-400" />
         </div>
-      </Shell>
+      </Page>
     )
   }
 
   if (!order) {
     return (
-      <Shell id={id}>
+      <Page id={id}>
         <Banner tone="error">{error || 'Order not found.'}</Banner>
         <Link to="/orders" className="btn mt-4 w-full rounded-xl bg-slate-800">
           Back to orders
         </Link>
-      </Shell>
+      </Page>
     )
   }
 
+  const vehicleLabel = order.vehicle
+    ? [order.vehicle.brand, order.vehicle.model].filter(Boolean).join(' ') ||
+      order.vehicle.name ||
+      order.vehicle.plateNumber ||
+      '—'
+    : `Vehicle #${order.vehicleId}`
+
   return (
-    <Shell id={id}>
+    <Page id={id}>
+      {paid && (
+        <Banner tone="ok">
+          This order is already paid.
+          <Link to={`/orders/${id}`} className="ml-1 font-semibold underline">
+            View order
+          </Link>
+        </Banner>
+      )}
       {error && <Banner tone="error">{error}</Banner>}
 
-      {/* Status strip */}
-      <div
-        className={`mb-4 flex items-center justify-between rounded-2xl border px-4 py-3 ${
-          paid
-            ? 'border-emerald-500/30 bg-emerald-500/10'
-            : 'border-amber-500/30 bg-amber-500/10'
-        }`}
-      >
-        <div className="flex items-center gap-2">
+      {/* Summary hero */}
+      <section className="mb-4 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
+        <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
+          <div>
+            <p className="text-xs text-slate-500">Order #{order.id}</p>
+            <p className="font-semibold text-white">
+              {order.customer?.name || `Customer #${order.customerId}`}
+            </p>
+            <p className="text-sm text-slate-400">
+              {vehicleLabel}
+              {order.vehicle?.plateNumber ? ` · ${order.vehicle.plateNumber}` : ''}
+            </p>
+          </div>
           <span
-            className={`material-icons text-xl ${
-              paid ? 'text-emerald-400' : 'text-amber-400'
+            className={`rounded-full px-3 py-1 text-xs font-bold tracking-wide ${
+              paid
+                ? 'bg-emerald-500/20 text-emerald-300'
+                : 'bg-amber-500/20 text-amber-300'
             }`}
           >
-            {paid ? 'verified' : 'pending'}
+            {paid ? 'PAID' : 'UNPAID'}
           </span>
-          <div>
-            <p className="text-sm font-semibold">
-              {paid ? 'Paid' : 'Awaiting payment'}
-            </p>
-            <p className="text-xs text-slate-400">Order #{id}</p>
-          </div>
-        </div>
-        <p className="text-lg font-bold text-teal-400">{formatRp(total)}</p>
-      </div>
-
-      {/* Summary */}
-      <section className="mb-4 rounded-2xl border border-slate-800 bg-slate-900 p-4">
-        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-          Summary
-        </p>
-        <div className="space-y-2 text-sm">
-          <div className="flex justify-between gap-3">
-            <span className="text-slate-500">Customer</span>
-            <span className="text-right font-medium">
-              {order.customer?.name || `Customer #${order.customerId}`}
-            </span>
-          </div>
-          <div className="flex justify-between gap-3">
-            <span className="text-slate-500">Vehicle</span>
-            <span className="text-right font-medium">{vehicleLabel}</span>
-          </div>
         </div>
 
-        <div className="my-4 border-t border-slate-800" />
-
-        <ul className="space-y-3">
-          {(order.order_items || []).map((item, i) => (
-            <li key={item.id ?? i} className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium">
-                  {(item as { service?: { name?: string } }).service?.name ||
-                    `Service #${item.serviceId}`}
-                </p>
-                <p className="text-xs text-slate-500">
-                  {item.duration || 0} min · qty {item.qty || 1}
+        <div className="px-4 py-3">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
+            Services
+          </p>
+          {(order.order_items || []).length === 0 ? (
+            <p className="text-sm text-slate-500">No services</p>
+          ) : (
+            (order.order_items || []).map((item, i) => (
+              <div
+                key={item.id ?? i}
+                className="flex items-start justify-between gap-3 py-2 border-b border-slate-800/80 last:border-0"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-white">
+                    {(item as { service?: { name?: string } }).service?.name ||
+                      `Service #${item.serviceId}`}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {item.duration || 0} min · qty {item.qty || 1}
+                  </p>
+                </div>
+                <p className="shrink-0 text-sm font-medium text-slate-200">
+                  {formatRp(Number(item.subtotal || 0))}
                 </p>
               </div>
-              <p className="shrink-0 text-sm font-medium">
-                {formatRp(Number(item.subtotal || 0))}
-              </p>
-            </li>
-          ))}
-        </ul>
+            ))
+          )}
+        </div>
 
-        <div className="mt-4 flex items-center justify-between border-t border-slate-800 pt-3">
-          <span className="text-sm font-semibold text-slate-300">Total</span>
-          <span className="text-xl font-bold text-teal-400">{formatRp(total)}</span>
+        <div className="flex items-center justify-between bg-slate-950/60 px-4 py-4">
+          <span className="text-sm font-semibold text-slate-400">Total due</span>
+          <span className="text-2xl font-bold text-teal-400">{formatRp(total)}</span>
         </div>
       </section>
 
-      {/* Methods */}
       {!paid && (
         <section className="mb-4 rounded-2xl border border-slate-800 bg-slate-900 p-4">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Payment method
-          </p>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <p className="mb-3 text-sm font-semibold text-white">Payment method</p>
+          <div className="grid grid-cols-3 gap-2">
             {METHODS.map((m) => {
               const active = method === m.id
               return (
@@ -336,79 +278,58 @@ const OrderPayment = () => {
                   key={m.id}
                   type="button"
                   onClick={() => setMethod(m.id)}
-                  className={`flex flex-col items-center gap-1 rounded-xl border px-2 py-3 transition ${
+                  className={`flex flex-col items-center gap-1 rounded-xl border px-2 py-3 text-center transition ${
                     active
-                      ? 'border-teal-500 bg-teal-500/15 text-teal-300'
+                      ? 'border-teal-500/60 bg-teal-500/15 text-teal-200'
                       : 'border-slate-700 bg-slate-950 text-slate-400 hover:border-slate-600'
                   }`}
                 >
                   <span className="material-icons text-2xl">{m.icon}</span>
                   <span className="text-xs font-semibold">{m.label}</span>
-                  <span className="text-[10px] opacity-70">{m.hint}</span>
                 </button>
               )
             })}
           </div>
 
-          {method === 'CASH' ? (
-            <div className="mt-4 space-y-3">
-              <div>
-                <label className="mb-1 block text-sm text-slate-400">
-                  Amount received
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  className="input input-bordered w-full rounded-xl border-slate-700 bg-slate-950"
-                  placeholder={String(total)}
-                  value={received}
-                  onChange={(e) => setReceived(e.target.value)}
-                />
-              </div>
-              <div className="flex items-center justify-between rounded-xl bg-slate-950 px-3 py-2 text-sm">
-                <span className="text-slate-500">Change</span>
-                <span className="font-semibold text-emerald-400">
-                  {formatRp(Math.max(change, 0))}
-                </span>
-              </div>
-              <textarea
-                className="textarea textarea-bordered w-full rounded-xl border-slate-700 bg-slate-950"
-                rows={2}
-                placeholder="Notes (optional)"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-              />
-            </div>
-          ) : (
-            <p className="mt-4 rounded-xl bg-slate-950/80 px-3 py-3 text-center text-xs leading-relaxed text-slate-400">
-              Opens Midtrans for <span className="text-teal-300">{method}</span>.
-              Paid status updates automatically via webhook — no staff approval.
+          <div className="mt-4 flex gap-3 rounded-xl border border-slate-800 bg-slate-950/80 p-3">
+            <span className="material-icons text-teal-400">info</span>
+            <p className="text-sm leading-relaxed text-slate-300">
+              You will pay with <strong className="text-white">{selected.label}</strong> via
+              Midtrans. {selected.hint}. Status becomes paid automatically after the bank
+              confirms — no staff approval needed.
             </p>
-          )}
+          </div>
         </section>
       )}
 
-      {paid && (
-        <Banner tone="ok">This order is already paid. You can go back to the order.</Banner>
-      )}
-
-      <div className="sticky bottom-0 -mx-4 border-t border-slate-800 bg-slate-950/95 px-4 py-3 backdrop-blur">
-        <button
-          type="button"
-          disabled={busy}
-          onClick={onPay}
-          className="btn mb-2 w-full rounded-xl border-0 bg-teal-600 text-white hover:bg-teal-500"
-        >
-          {busy ? (
-            <span className="loading loading-spinner loading-sm" />
-          ) : paid ? (
-            'Back to order'
-          ) : method === 'CASH' ? (
-            `Mark paid · ${formatRp(total)}`
-          ) : (
-            `Pay ${formatRp(total)}`
-          )}
-        </button>
+      <div className="flex flex-col gap-2 pb-6">
+        {paid ? (
+          <Link
+            to={`/orders/${id}`}
+            className="btn w-full rounded-xl border-0 bg-teal-600 text-white hover:bg-teal-500"
+          >
+            Back to order
+          </Link>
+        ) : (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void payMidtrans()}
+            className="btn w-full rounded-xl border-0 bg-teal-600 text-white hover:bg-teal-500"
+          >
+            {busy ? (
+              <>
+                <span className="loading loading-spinner loading-sm" />
+                Opening payment…
+              </>
+            ) : (
+              <>
+                Pay {formatRp(total)}
+                <span className="opacity-80">· {selected.label}</span>
+              </>
+            )}
+          </button>
+        )}
         <Link
           to={`/orders/${id}`}
           className="btn w-full rounded-xl border border-slate-700 bg-transparent text-slate-300"
@@ -416,15 +337,15 @@ const OrderPayment = () => {
           Cancel
         </Link>
       </div>
-    </Shell>
+    </Page>
   )
 }
 
-function Shell({ id, children }: { id?: string; children: ReactNode }) {
+function Page({ id, children }: { id?: string; children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <header className="sticky top-0 z-30 border-b border-slate-800 bg-slate-950/95 backdrop-blur">
-        <div className="mx-auto flex h-14 max-w-lg items-center gap-2 px-4">
+        <div className="mx-auto flex h-14 max-w-3xl items-center gap-2 px-4">
           <Link
             to={`/orders/${id}`}
             className="btn btn-ghost btn-sm btn-circle text-slate-300"
@@ -433,11 +354,11 @@ function Shell({ id, children }: { id?: string; children: ReactNode }) {
           </Link>
           <div>
             <h1 className="text-lg font-bold leading-tight">Checkout</h1>
-            <p className="text-xs text-slate-500">Secure payment</p>
+            <p className="text-xs text-slate-500">Order #{id}</p>
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-lg px-4 py-5 pb-8">{children}</main>
+      <main className="mx-auto max-w-3xl px-4 py-5">{children}</main>
     </div>
   )
 }
@@ -447,19 +368,19 @@ function Banner({
   children,
 }: {
   tone: 'ok' | 'error'
-  children: ReactNode
+  children: React.ReactNode
 }) {
   const ok = tone === 'ok'
   return (
     <div
-      className={`mb-4 flex items-start gap-2 rounded-xl p-3 text-sm ${
+      className={`mb-4 flex flex-wrap items-center gap-2 rounded-xl px-3 py-2.5 text-sm ${
         ok ? 'bg-emerald-500/15 text-emerald-300' : 'bg-red-500/15 text-red-300'
       }`}
     >
       <span className="material-icons text-lg">
         {ok ? 'check_circle' : 'error_outline'}
       </span>
-      <span>{children}</span>
+      <span className="min-w-0 flex-1">{children}</span>
     </div>
   )
 }
