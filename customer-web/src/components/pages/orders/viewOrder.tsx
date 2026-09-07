@@ -1,3 +1,4 @@
+// src/components/pages/orders/viewOrder.tsx
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import axios from 'axios'
@@ -25,13 +26,13 @@ const STEPS: {
   {
     key: 'PENDING',
     label: 'Waiting',
-    hint: 'We received your booking',
+    hint: 'Booking received',
     icon: 'schedule',
   },
   {
     key: 'PROCESSING',
     label: 'Washing',
-    hint: 'Your car is being washed',
+    hint: 'In the bay',
     icon: 'local_car_wash',
   },
   {
@@ -87,10 +88,23 @@ const methodLabel = (method?: string) => {
   const m = method.toLowerCase()
   if (m.includes('bank') || m === 'transfer') return 'Bank transfer'
   if (m.includes('qris')) return 'QRIS'
-  if (m.includes('gopay') || m.includes('ovo') || m.includes('dana') || m.includes('e-money') || m.includes('emoney'))
+  if (
+    m.includes('gopay') ||
+    m.includes('ovo') ||
+    m.includes('dana') ||
+    m.includes('e-money') ||
+    m.includes('emoney')
+  )
     return 'E-money'
   if (m === 'cash') return 'Cash'
   return method.replace(/_/g, ' ')
+}
+
+const hasStaff = (order: Order | null) => {
+  if (!order) return false
+  if (order.staff?.name || order.staff?.id) return true
+  if (order.staffId != null && Number(order.staffId) > 0) return true
+  return false
 }
 
 const ViewOrder = () => {
@@ -181,6 +195,11 @@ const ViewOrder = () => {
   const canPay = status !== 'CANCELLED' && !paid && !paymentPending
   const active = stepIndex(status)
   const cancelled = status === 'CANCELLED'
+  const staffReady = hasStaff(order)
+  const waitingForShop =
+    !cancelled && status === 'PENDING' && paid && !staffReady
+  const waitingInQueue =
+    !cancelled && status === 'PENDING' && paid && staffReady
 
   const vehicleTitle = order?.vehicle
     ? [order.vehicle.brand, order.vehicle.model].filter(Boolean).join(' ') ||
@@ -190,19 +209,20 @@ const ViewOrder = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 transition-colors dark:bg-slate-950 dark:text-slate-100 print:bg-white print:text-black">
-      {/* App header — never print */}
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 text-slate-900 backdrop-blur print:hidden dark:border-slate-800 dark:bg-slate-950/95 dark:text-slate-100">
+      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur print:hidden dark:border-slate-800 dark:bg-slate-950/95">
         <div className="mx-auto flex h-14 max-w-3xl items-center justify-between gap-2 px-4 sm:px-6">
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 items-center gap-2">
             <Link
               to="/orders"
               className="btn btn-ghost btn-sm btn-circle text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
             >
               <span className="material-icons">arrow_back</span>
             </Link>
-            <div>
-              <h1 className="text-lg font-bold leading-tight">Order details</h1>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+            <div className="min-w-0">
+              <h1 className="truncate text-lg font-bold leading-tight">
+                Order #{id}
+              </h1>
+              <p className="text-xs text-slate-500">
                 {order ? formatDate(order.createdAt) : '…'}
               </p>
             </div>
@@ -214,15 +234,20 @@ const ViewOrder = () => {
       <main className="mx-auto max-w-3xl px-4 py-5 sm:px-6 print:max-w-none print:px-8 print:py-6">
         {loading && (
           <div className="flex justify-center py-20 print:hidden">
-            <span className="loading loading-spinner loading-lg text-teal-400" />
+            <span className="loading loading-spinner loading-lg text-teal-500" />
           </div>
         )}
 
         {!loading && (error || !order) && (
-          <div className="rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center print:hidden">
+          <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center print:hidden dark:border-slate-800 dark:bg-slate-900">
             <span className="material-icons text-4xl text-red-400">error_outline</span>
-            <p className="mt-3 text-red-300">{error || 'Order not found.'}</p>
-            <Link to="/orders" className="btn btn-sm mt-4 rounded-xl bg-slate-800">
+            <p className="mt-3 text-red-600 dark:text-red-300">
+              {error || 'Order not found.'}
+            </p>
+            <Link
+              to="/orders"
+              className="btn btn-sm mt-4 rounded-xl bg-slate-800 text-white"
+            >
               Back to my orders
             </Link>
           </div>
@@ -230,7 +255,7 @@ const ViewOrder = () => {
 
         {!loading && order && (
           <>
-            {/* ── PRINT-ONLY ticket ── */}
+            {/* PRINT TICKET */}
             <div className="hidden print:block">
               <div className="border-b border-black pb-3">
                 <h1 className="text-2xl font-bold tracking-tight">WASHINGTON</h1>
@@ -268,9 +293,7 @@ const ViewOrder = () => {
                   </tr>
                   <tr>
                     <td className="py-1 align-top text-slate-600">Crew</td>
-                    <td className="py-1 font-medium">
-                      {order.staff?.name || '—'}
-                    </td>
+                    <td className="py-1 font-medium">{order.staff?.name || '—'}</td>
                   </tr>
                   <tr>
                     <td className="py-1 align-top text-slate-600">Status</td>
@@ -284,7 +307,9 @@ const ViewOrder = () => {
               </table>
 
               <div className="mt-5 border-t border-black pt-3">
-                <p className="mb-2 text-xs font-bold uppercase tracking-wide">Services</p>
+                <p className="mb-2 text-xs font-bold uppercase tracking-wide">
+                  Services
+                </p>
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-slate-300 text-left text-xs text-slate-600">
@@ -311,7 +336,7 @@ const ViewOrder = () => {
                     ))}
                   </tbody>
                 </table>
-                <div className="mt-3 flex justify-between border-t border-black pt-2 text-base font-bold">
+                <div className="mt-3 flex justify-between border-t-2 border-black pt-2 text-base font-bold">
                   <span>Total</span>
                   <span>{formatRp(total)}</span>
                 </div>
@@ -319,7 +344,7 @@ const ViewOrder = () => {
 
               <div className="mt-4 border-t border-black pt-3 text-sm">
                 <p>
-                  <span className="text-slate-600">Payment:</span>{' '}
+                  <span className="text-slate-600">Payment: </span>
                   <strong>
                     {paid
                       ? `Paid${payment?.method ? ` · ${methodLabel(payment.method)}` : ''}`
@@ -330,7 +355,8 @@ const ViewOrder = () => {
                 </p>
                 {!!order.note && (
                   <p className="mt-2">
-                    <span className="text-slate-600">Notes:</span> {order.note}
+                    <span className="text-slate-600">Notes: </span>
+                    {order.note}
                   </p>
                 )}
               </div>
@@ -340,175 +366,226 @@ const ViewOrder = () => {
               </p>
             </div>
 
-            {/* ── SCREEN UI ── */}
-            <div className="print:hidden">
+            {/* SCREEN */}
+            <div className="print:hidden space-y-4">
               {cancelled ? (
-                <section className="mb-5 rounded-2xl border border-red-500/30 bg-red-500/10 p-4">
-                  <div className="flex items-center gap-3">
-                    <span className="material-icons text-3xl text-red-400">cancel</span>
-                    <div>
-                      <p className="font-semibold text-red-300">This order was cancelled</p>
-                      <p className="text-sm text-red-200/70">
-                        It is no longer active. Contact the shop if you need help.
-                      </p>
-                    </div>
+                <section className="flex gap-3 rounded-2xl border border-red-500/25 bg-red-500/10 p-4">
+                  <span className="material-icons text-3xl text-red-500">cancel</span>
+                  <div>
+                    <p className="font-semibold text-red-700 dark:text-red-300">
+                      This order was cancelled
+                    </p>
+                    <p className="mt-0.5 text-sm text-red-700/80 dark:text-red-200/70">
+                      It is no longer active. Contact the shop if you need help.
+                    </p>
                   </div>
                 </section>
               ) : (
-                <section className="mb-5">
-                  <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                    Where your car is
-                  </p>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                    {STEPS.map((step, i) => {
-                      const done = i < active
-                      const current = i === active
-                      return (
-                        <div
-                          key={step.key}
-                          className={`rounded-2xl border p-4 transition-all ${
-                            current
-                              ? 'border-teal-500/60 bg-linear-to-br from-teal-500/20 to-teal-800/30'
-                              : done
-                                ? 'border-emerald-500/30 bg-emerald-500/10'
-                                : 'border-slate-200 bg-slate-100/80 opacity-70 dark:border-slate-800 dark:bg-slate-900/80 dark:opacity-60'
-                          }`}
-                        >
-                          <div className="mb-2 flex items-center justify-between">
+                <>
+                  {/* Progress */}
+                  <section>
+                    <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Progress
+                    </p>
+                    <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                      {STEPS.map((step, i) => {
+                        const done = i < active
+                        const current = i === active
+                        return (
+                          <div
+                            key={step.key}
+                            className={`rounded-2xl border p-3 sm:p-4 ${
+                              current
+                                ? 'border-teal-500/50 bg-linear-to-br from-teal-500/15 to-teal-700/20'
+                                : done
+                                  ? 'border-emerald-500/30 bg-emerald-500/10'
+                                  : 'border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900'
+                            }`}
+                          >
                             <span
                               className={`material-icons text-2xl ${
                                 current
                                   ? 'text-teal-600 dark:text-teal-300'
                                   : done
-                                    ? 'text-emerald-500 dark:text-emerald-400'
-                                    : 'text-slate-400 dark:text-slate-600'
+                                    ? 'text-emerald-500'
+                                    : 'text-slate-400'
                               }`}
                             >
                               {done ? 'check_circle' : step.icon}
                             </span>
+                            <p
+                              className={`mt-2 text-sm font-semibold ${
+                                current || done
+                                  ? 'text-slate-900 dark:text-white'
+                                  : 'text-slate-500'
+                              }`}
+                            >
+                              {step.label}
+                            </p>
+                            <p className="mt-0.5 text-[11px] text-slate-500">
+                              {step.hint}
+                            </p>
                             {current && (
-                              <span className="rounded-full bg-teal-500/30 px-2 py-0.5 text-[10px] font-semibold uppercase text-teal-800 dark:text-teal-200">
+                              <span className="mt-2 inline-block rounded-full bg-teal-500/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-teal-700 dark:text-teal-200">
                                 Now
                               </span>
                             )}
-                            {done && (
-                              <span className="text-[10px] font-semibold uppercase text-emerald-600 dark:text-emerald-400/80">
-                                Done
-                              </span>
-                            )}
                           </div>
-                          <p
-                            className={`text-sm font-semibold ${
-                              current
-                                ? 'text-teal-950 dark:text-white'
-                                : done
-                                  ? 'text-emerald-800 dark:text-emerald-200'
-                                  : 'text-slate-600 dark:text-slate-400'
-                            }`}
-                          >
-                            {step.label}
-                          </p>
-                          <p
-                            className={`mt-0.5 text-xs ${
-                              current ? 'text-teal-800/80 dark:text-teal-100/80' : 'text-slate-500 dark:text-slate-400'
-                            }`}
-                          >
-                            {step.hint}
-                          </p>
-                        </div>
-                      )
-                    })}
-                  </div>
+                        )
+                      })}
+                    </div>
+                  </section>
 
-                  <div className="mt-3 flex items-center justify-between gap-2 px-1">
-                    <span
-                      className={`text-xs font-medium ${
-                        paid
-                          ? 'text-emerald-600 dark:text-emerald-400'
-                          : paymentPending
-                            ? 'text-sky-600 dark:text-sky-400'
-                            : 'text-amber-600 dark:text-amber-400'
-                      }`}
-                    >
-                      {paid
-                        ? 'Payment: Paid'
-                        : paymentPending
-                          ? 'Payment: Confirming…'
-                          : 'Payment: Not paid yet'}
-                    </span>
-                    {payment?.method && (
-                      <span className="text-xs text-slate-500 dark:text-slate-400">
-                        {methodLabel(payment.method)}
+                  {/* Waiting banners */}
+                  {waitingForShop && (
+                    <section className="flex gap-3 rounded-2xl border border-sky-500/30 bg-sky-500/10 p-4">
+                      <span className="material-icons text-2xl text-sky-600 dark:text-sky-300">
+                        hourglass_top
                       </span>
-                    )}
-                  </div>
-                </section>
+                      <div>
+                        <p className="font-semibold text-sky-900 dark:text-sky-100">
+                          Please wait a moment
+                        </p>
+                        <p className="mt-1 text-sm leading-relaxed text-sky-900/80 dark:text-sky-100/80">
+                          We are assigning a crew member to start your wash. You will
+                          see progress move to <strong>Washing</strong> once work begins.
+                          Other cars may finish ahead of you — thanks for your patience.
+                        </p>
+                      </div>
+                    </section>
+                  )}
+
+                  {waitingInQueue && (
+                    <section className="flex gap-3 rounded-2xl border border-teal-500/30 bg-teal-500/10 p-4">
+                      <span className="material-icons text-2xl text-teal-700 dark:text-teal-300">
+                        groups
+                      </span>
+                      <div>
+                        <p className="font-semibold text-teal-900 dark:text-teal-100">
+                          Crew assigned — almost ready
+                        </p>
+                        <p className="mt-1 text-sm leading-relaxed text-teal-900/80 dark:text-teal-100/80">
+                          <strong>{order.staff?.name || 'Your crew'}</strong> will start
+                          when the bay is free. Hang tight while other orders finish if
+                          needed.
+                        </p>
+                      </div>
+                    </section>
+                  )}
+
+                  {status === 'PROCESSING' && (
+                    <section className="flex gap-3 rounded-2xl border border-teal-500/30 bg-teal-500/10 p-4">
+                      <span className="material-icons text-2xl text-teal-600 dark:text-teal-300">
+                        local_car_wash
+                      </span>
+                      <div>
+                        <p className="font-semibold text-teal-900 dark:text-teal-100">
+                          Your car is being washed
+                        </p>
+                        <p className="mt-1 text-sm text-teal-900/80 dark:text-teal-100/80">
+                          {order.staff?.name
+                            ? `${order.staff.name} is on it.`
+                            : 'Our crew is working on your vehicle.'}{' '}
+                          We will mark it done when it is ready for pickup.
+                        </p>
+                      </div>
+                    </section>
+                  )}
+
+                  {status === 'COMPLETED' && (
+                    <section className="flex gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4">
+                      <span className="material-icons text-2xl text-emerald-600">
+                        check_circle
+                      </span>
+                      <div>
+                        <p className="font-semibold text-emerald-900 dark:text-emerald-100">
+                          Ready for pickup
+                        </p>
+                        <p className="mt-1 text-sm text-emerald-900/80 dark:text-emerald-100/80">
+                          Your wash is complete. Please collect your vehicle at the bay.
+                        </p>
+                      </div>
+                    </section>
+                  )}
+                </>
               )}
 
-              <section className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
-                <Row
+              {/* Details */}
+              <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+                <DetailRow
                   label="Name"
                   value={order.customer?.name || '—'}
                   sub={order.customer?.phone || order.customer?.email}
                 />
-                <Row
+                <DetailRow
                   label="Vehicle"
                   value={vehicleTitle}
                   sub={order.vehicle?.plateNumber}
                 />
-                <Row
+                <DetailRow
                   label="Crew"
-                  value={order.staff?.name || 'Assigned at the shop'}
+                  value={
+                    staffReady
+                      ? order.staff?.name || `Staff #${order.staffId}`
+                      : 'Waiting for assignment'
+                  }
                   last
                 />
               </section>
 
-              <section className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
-                <h2 className="mb-3 text-sm font-semibold text-slate-900 dark:text-white">Services</h2>
-                {(order.order_items || []).length === 0 ? (
-                  <p className="py-4 text-center text-sm text-slate-500 dark:text-slate-400">
-                    No services listed.
-                  </p>
-                ) : (
-                  (order.order_items || []).map((item, i) => (
-                    <div
-                      key={item.id ?? i}
-                      className="mb-2 flex items-start justify-between border-b border-slate-100 pb-2 last:mb-0 last:border-0 dark:border-slate-800"
-                    >
-                      <div>
-                        <p className="text-sm font-medium text-slate-900 dark:text-white">
-                          {(item as { service?: { name?: string } }).service?.name ||
-                            'Service'}
+              {/* Services — no heavy ==== lines */}
+              <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+                <div className="border-b border-slate-100 px-4 py-3 dark:border-slate-800">
+                  <h2 className="text-sm font-semibold">Services</h2>
+                </div>
+                <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {(order.order_items || []).length === 0 ? (
+                    <li className="px-4 py-6 text-center text-sm text-slate-500">
+                      No services listed.
+                    </li>
+                  ) : (
+                    (order.order_items || []).map((item, i) => (
+                      <li
+                        key={item.id ?? i}
+                        className="flex items-start justify-between gap-3 px-4 py-3"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium">
+                            {(item as { service?: { name?: string } }).service?.name ||
+                              'Service'}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            {item.duration || 0} min · ×{item.qty || 1}
+                          </p>
+                        </div>
+                        <p className="shrink-0 text-sm font-semibold">
+                          {formatRp(Number(item.subtotal || 0))}
                         </p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">
-                          {item.duration || 0} min · ×{item.qty || 1}
-                        </p>
-                      </div>
-                      <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                        {formatRp(Number(item.subtotal || 0))}
-                      </p>
-                    </div>
-                  ))
-                )}
-                <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2 dark:border-slate-800">
-                  <span className="font-semibold text-slate-700 dark:text-slate-300">Total</span>
-                  <span className="text-xl font-bold text-teal-600 dark:text-teal-400">
+                      </li>
+                    ))
+                  )}
+                </ul>
+                <div className="flex items-center justify-between bg-slate-50 px-4 py-3 dark:bg-slate-950/60">
+                  <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">
+                    Total
+                  </span>
+                  <span className="text-lg font-bold text-teal-600 dark:text-teal-400">
                     {formatRp(total)}
                   </span>
                 </div>
               </section>
 
               {!!order.note && (
-                <section className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
-                  <p className="mb-1 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">
+                <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+                  <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
                     Notes
                   </p>
                   <p className="text-sm text-slate-700 dark:text-slate-300">{order.note}</p>
                 </section>
               )}
 
-              <section className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
-                <p className="mb-1 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">
+              <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Payment
                 </p>
                 {paid ? (
@@ -517,22 +594,24 @@ const ViewOrder = () => {
                     {payment?.method ? ` · ${methodLabel(payment.method)}` : ''}
                     {payment?.amount != null
                       ? ` · ${formatRp(Number(payment.amount))}`
-                      : ''}
+                      : ` · ${formatRp(total)}`}
                   </p>
                 ) : paymentPending ? (
                   <p className="text-sm text-sky-600 dark:text-sky-300">
-                    We are confirming your payment. This can take a moment.
+                    Confirming your payment — this can take a moment.
                   </p>
                 ) : (
-                  <p className="text-sm text-amber-600 dark:text-amber-300">Not paid yet</p>
+                  <p className="text-sm text-amber-600 dark:text-amber-300">
+                    Not paid yet
+                  </p>
                 )}
               </section>
 
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2 pb-4">
                 {canPay && (
                   <Link
                     to={`/orders/${id}/pay`}
-                    className="btn w-full rounded-xl border-0 bg-teal-600 text-white hover:bg-teal-500"
+                    className="btn h-12 w-full rounded-2xl border-0 bg-teal-600 text-white hover:bg-teal-500"
                   >
                     Pay now
                   </Link>
@@ -540,7 +619,7 @@ const ViewOrder = () => {
                 {paymentPending && (
                   <button
                     type="button"
-                    className="btn w-full rounded-xl border border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200 dark:border-0 dark:bg-slate-800 dark:text-slate-200"
+                    className="btn h-12 w-full rounded-2xl border-0 bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-100"
                     onClick={() => void silentReload()}
                   >
                     Check payment status
@@ -549,14 +628,14 @@ const ViewOrder = () => {
                 <button
                   type="button"
                   onClick={() => window.print()}
-                  className="btn w-full rounded-xl border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-transparent dark:text-slate-300 dark:hover:bg-slate-800"
+                  className="btn h-12 w-full rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-transparent"
                 >
                   <span className="material-icons text-lg">print</span>
                   Print ticket
                 </button>
                 <Link
                   to="/orders"
-                  className="btn w-full rounded-xl border border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200 dark:border-0 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                  className="btn h-12 w-full rounded-2xl border-0 bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100"
                 >
                   Back to my orders
                 </Link>
@@ -569,7 +648,7 @@ const ViewOrder = () => {
   )
 }
 
-function Row({
+function DetailRow({
   label,
   value,
   sub,
@@ -582,15 +661,15 @@ function Row({
 }) {
   return (
     <div
-      className={`flex items-start justify-between py-2 ${
+      className={`flex items-start justify-between gap-3 py-2.5 ${
         last ? '' : 'border-b border-slate-100 dark:border-slate-800'
       }`}
     >
-      <span className="w-24 text-xs text-slate-500 dark:text-slate-400">{label}</span>
-      <div className="min-w-0 flex-1 text-right">
-        <p className="text-sm font-medium text-slate-900 dark:text-white">{value}</p>
+      <span className="w-20 shrink-0 text-xs font-medium text-slate-500">{label}</span>
+      <div className="min-w-0 text-right">
+        <p className="text-sm font-semibold text-slate-900 dark:text-white">{value}</p>
         {sub != null && sub !== '' && (
-          <p className="text-xs text-slate-500 dark:text-slate-400">{String(sub)}</p>
+          <p className="text-xs text-slate-500">{String(sub)}</p>
         )}
       </div>
     </div>
