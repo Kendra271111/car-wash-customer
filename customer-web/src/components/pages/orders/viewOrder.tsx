@@ -1,4 +1,3 @@
-// src/components/pages/orders/viewOrder.tsx
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import axios from 'axios'
@@ -8,6 +7,7 @@ import useOrders, {
 } from '../../../hooks/useOrder'
 import { api } from '../../../api/api'
 import { useRealtimeRefresh } from '../../../hooks/realTimeRefresh'
+import ThemeToggle from '../../ui/themeToggle'
 
 type PaymentInfo = {
   id?: number
@@ -189,22 +189,25 @@ const ViewOrder = () => {
     : '—'
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 print:bg-white print:text-black">
+    <div className="min-h-screen bg-slate-50 text-slate-900 transition-colors dark:bg-slate-950 dark:text-slate-100 print:bg-white print:text-black">
       {/* App header — never print */}
-      <header className="sticky top-0 z-30 border-b border-slate-800 bg-slate-950/95 backdrop-blur print:hidden">
-        <div className="mx-auto flex h-14 max-w-3xl items-center gap-2 px-4 sm:px-6">
-          <Link
-            to="/orders"
-            className="btn btn-ghost btn-sm btn-circle text-slate-300 hover:bg-slate-800"
-          >
-            <span className="material-icons">arrow_back</span>
-          </Link>
-          <div>
-            <h1 className="text-lg font-bold leading-tight">Order details</h1>
-            <p className="text-xs text-slate-500">
-              {order ? formatDate(order.createdAt) : '…'}
-            </p>
+      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 text-slate-900 backdrop-blur print:hidden dark:border-slate-800 dark:bg-slate-950/95 dark:text-slate-100">
+        <div className="mx-auto flex h-14 max-w-3xl items-center justify-between gap-2 px-4 sm:px-6">
+          <div className="flex items-center gap-2">
+            <Link
+              to="/orders"
+              className="btn btn-ghost btn-sm btn-circle text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+            >
+              <span className="material-icons">arrow_back</span>
+            </Link>
+            <div>
+              <h1 className="text-lg font-bold leading-tight">Order details</h1>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {order ? formatDate(order.createdAt) : '…'}
+              </p>
+            </div>
           </div>
+          <ThemeToggle />
         </div>
       </header>
 
@@ -368,28 +371,28 @@ const ViewOrder = () => {
                               ? 'border-teal-500/60 bg-linear-to-br from-teal-500/20 to-teal-800/30'
                               : done
                                 ? 'border-emerald-500/30 bg-emerald-500/10'
-                                : 'border-slate-800 bg-slate-900/80 opacity-60'
+                                : 'border-slate-200 bg-slate-100/80 opacity-70 dark:border-slate-800 dark:bg-slate-900/80 dark:opacity-60'
                           }`}
                         >
                           <div className="mb-2 flex items-center justify-between">
                             <span
                               className={`material-icons text-2xl ${
                                 current
-                                  ? 'text-teal-300'
+                                  ? 'text-teal-600 dark:text-teal-300'
                                   : done
-                                    ? 'text-emerald-400'
-                                    : 'text-slate-600'
+                                    ? 'text-emerald-500 dark:text-emerald-400'
+                                    : 'text-slate-400 dark:text-slate-600'
                               }`}
                             >
                               {done ? 'check_circle' : step.icon}
                             </span>
                             {current && (
-                              <span className="rounded-full bg-teal-500/30 px-2 py-0.5 text-[10px] font-semibold uppercase text-teal-200">
+                              <span className="rounded-full bg-teal-500/30 px-2 py-0.5 text-[10px] font-semibold uppercase text-teal-800 dark:text-teal-200">
                                 Now
                               </span>
                             )}
                             {done && (
-                              <span className="text-[10px] font-semibold uppercase text-emerald-400/80">
+                              <span className="text-[10px] font-semibold uppercase text-emerald-600 dark:text-emerald-400/80">
                                 Done
                               </span>
                             )}
@@ -397,17 +400,17 @@ const ViewOrder = () => {
                           <p
                             className={`text-sm font-semibold ${
                               current
-                                ? 'text-white'
+                                ? 'text-teal-950 dark:text-white'
                                 : done
-                                  ? 'text-emerald-200'
-                                  : 'text-slate-500'
+                                  ? 'text-emerald-800 dark:text-emerald-200'
+                                  : 'text-slate-600 dark:text-slate-400'
                             }`}
                           >
                             {step.label}
                           </p>
                           <p
                             className={`mt-0.5 text-xs ${
-                              current ? 'text-teal-100/80' : 'text-slate-500'
+                              current ? 'text-teal-800/80 dark:text-teal-100/80' : 'text-slate-500 dark:text-slate-400'
                             }`}
                           >
                             {step.hint}
@@ -421,10 +424,10 @@ const ViewOrder = () => {
                     <span
                       className={`text-xs font-medium ${
                         paid
-                          ? 'text-emerald-400'
+                          ? 'text-emerald-600 dark:text-emerald-400'
                           : paymentPending
-                            ? 'text-sky-400'
-                            : 'text-amber-400'
+                            ? 'text-sky-600 dark:text-sky-400'
+                            : 'text-amber-600 dark:text-amber-400'
                       }`}
                     >
                       {paid
@@ -434,7 +437,7 @@ const ViewOrder = () => {
                           : 'Payment: Not paid yet'}
                     </span>
                     {payment?.method && (
-                      <span className="text-xs text-slate-500">
+                      <span className="text-xs text-slate-500 dark:text-slate-400">
                         {methodLabel(payment.method)}
                       </span>
                     )}
@@ -442,7 +445,7 @@ const ViewOrder = () => {
                 </section>
               )}
 
-              <section className="mb-4 rounded-2xl border border-slate-800 bg-slate-900 p-4">
+              <section className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
                 <Row
                   label="Name"
                   value={order.customer?.name || '—'}
@@ -460,56 +463,56 @@ const ViewOrder = () => {
                 />
               </section>
 
-              <section className="mb-4 rounded-2xl border border-slate-800 bg-slate-900 p-4">
-                <h2 className="mb-3 text-sm font-semibold">Services</h2>
+              <section className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+                <h2 className="mb-3 text-sm font-semibold text-slate-900 dark:text-white">Services</h2>
                 {(order.order_items || []).length === 0 ? (
-                  <p className="py-4 text-center text-sm text-slate-500">
+                  <p className="py-4 text-center text-sm text-slate-500 dark:text-slate-400">
                     No services listed.
                   </p>
                 ) : (
                   (order.order_items || []).map((item, i) => (
                     <div
                       key={item.id ?? i}
-                      className="mb-2 flex items-start justify-between border-b border-slate-800 pb-2 last:mb-0 last:border-0"
+                      className="mb-2 flex items-start justify-between border-b border-slate-100 pb-2 last:mb-0 last:border-0 dark:border-slate-800"
                     >
                       <div>
-                        <p className="text-sm font-medium">
+                        <p className="text-sm font-medium text-slate-900 dark:text-white">
                           {(item as { service?: { name?: string } }).service?.name ||
                             'Service'}
                         </p>
-                        <p className="text-xs text-slate-500">
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
                           {item.duration || 0} min · ×{item.qty || 1}
                         </p>
                       </div>
-                      <p className="text-sm font-semibold">
+                      <p className="text-sm font-semibold text-slate-900 dark:text-white">
                         {formatRp(Number(item.subtotal || 0))}
                       </p>
                     </div>
                   ))
                 )}
-                <div className="mt-3 flex items-center justify-between pt-2">
-                  <span className="font-semibold text-slate-300">Total</span>
-                  <span className="text-xl font-bold text-teal-400">
+                <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2 dark:border-slate-800">
+                  <span className="font-semibold text-slate-700 dark:text-slate-300">Total</span>
+                  <span className="text-xl font-bold text-teal-600 dark:text-teal-400">
                     {formatRp(total)}
                   </span>
                 </div>
               </section>
 
               {!!order.note && (
-                <section className="mb-4 rounded-2xl border border-slate-800 bg-slate-900 p-4">
-                  <p className="mb-1 text-xs font-semibold uppercase text-slate-500">
+                <section className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+                  <p className="mb-1 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">
                     Notes
                   </p>
-                  <p className="text-sm text-slate-300">{order.note}</p>
+                  <p className="text-sm text-slate-700 dark:text-slate-300">{order.note}</p>
                 </section>
               )}
 
-              <section className="mb-4 rounded-2xl border border-slate-800 bg-slate-900 p-4">
-                <p className="mb-1 text-xs font-semibold uppercase text-slate-500">
+              <section className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+                <p className="mb-1 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">
                   Payment
                 </p>
                 {paid ? (
-                  <p className="text-sm font-medium text-emerald-400">
+                  <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
                     Paid
                     {payment?.method ? ` · ${methodLabel(payment.method)}` : ''}
                     {payment?.amount != null
@@ -517,11 +520,11 @@ const ViewOrder = () => {
                       : ''}
                   </p>
                 ) : paymentPending ? (
-                  <p className="text-sm text-sky-300">
+                  <p className="text-sm text-sky-600 dark:text-sky-300">
                     We are confirming your payment. This can take a moment.
                   </p>
                 ) : (
-                  <p className="text-sm text-amber-300">Not paid yet</p>
+                  <p className="text-sm text-amber-600 dark:text-amber-300">Not paid yet</p>
                 )}
               </section>
 
@@ -537,7 +540,7 @@ const ViewOrder = () => {
                 {paymentPending && (
                   <button
                     type="button"
-                    className="btn w-full rounded-xl border-0 bg-slate-800 text-slate-200"
+                    className="btn w-full rounded-xl border border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200 dark:border-0 dark:bg-slate-800 dark:text-slate-200"
                     onClick={() => void silentReload()}
                   >
                     Check payment status
@@ -546,14 +549,14 @@ const ViewOrder = () => {
                 <button
                   type="button"
                   onClick={() => window.print()}
-                  className="btn w-full rounded-xl border border-slate-700 bg-transparent text-slate-300"
+                  className="btn w-full rounded-xl border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-transparent dark:text-slate-300 dark:hover:bg-slate-800"
                 >
                   <span className="material-icons text-lg">print</span>
                   Print ticket
                 </button>
                 <Link
                   to="/orders"
-                  className="btn w-full rounded-xl border-0 bg-slate-800 text-slate-200"
+                  className="btn w-full rounded-xl border border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200 dark:border-0 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                 >
                   Back to my orders
                 </Link>
@@ -580,14 +583,14 @@ function Row({
   return (
     <div
       className={`flex items-start justify-between py-2 ${
-        last ? '' : 'border-b border-slate-800'
+        last ? '' : 'border-b border-slate-100 dark:border-slate-800'
       }`}
     >
-      <span className="w-24 text-xs text-slate-500">{label}</span>
+      <span className="w-24 text-xs text-slate-500 dark:text-slate-400">{label}</span>
       <div className="min-w-0 flex-1 text-right">
-        <p className="text-sm font-medium text-white">{value}</p>
+        <p className="text-sm font-medium text-slate-900 dark:text-white">{value}</p>
         {sub != null && sub !== '' && (
-          <p className="text-xs text-slate-500">{String(sub)}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">{String(sub)}</p>
         )}
       </div>
     </div>

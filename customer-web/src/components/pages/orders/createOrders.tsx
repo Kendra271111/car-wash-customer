@@ -6,6 +6,7 @@ import useAuth from "../../../hooks/useAuth";
 import useOrders from "../../../hooks/useOrder";
 import useVehicle, { type Vehicle } from "../../../hooks/useVehicles";
 import { api } from "../../../api/api";
+import ThemeToggle from "../../ui/themeToggle";
 
 type Service = {
   id: number;
@@ -205,57 +206,60 @@ const CreateOrders = () => {
 
   if (booting) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950">
-        <span className="loading loading-spinner loading-lg text-teal-400" />
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
+        <span className="loading loading-spinner loading-lg text-teal-500" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      <header className="sticky top-0 z-30 border-b border-slate-800 bg-slate-950/95 backdrop-blur">
-        <div className="mx-auto flex h-14 max-w-3xl items-center gap-2 px-4">
-          <Link
-            to="/orders"
-            className="btn btn-ghost btn-sm btn-circle text-slate-300"
-          >
-            <span className="material-icons">arrow_back</span>
-          </Link>
-          <div>
-            <h1 className="text-lg font-bold">Book a wash</h1>
-            <p className="text-xs text-slate-500">Choose vehicle & services</p>
+    <div className="min-h-screen bg-slate-50 text-slate-900 transition-colors dark:bg-slate-950 dark:text-slate-100">
+      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 text-slate-900 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 dark:text-slate-100">
+        <div className="mx-auto flex h-14 max-w-3xl items-center justify-between gap-2 px-4">
+          <div className="flex items-center gap-2">
+            <Link
+              to="/orders"
+              className="btn btn-ghost btn-sm btn-circle text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+            >
+              <span className="material-icons">arrow_back</span>
+            </Link>
+            <div>
+              <h1 className="text-lg font-bold">Book a wash</h1>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Choose vehicle & services</p>
+            </div>
           </div>
+          <ThemeToggle className="text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800" />
         </div>
       </header>
 
       <main className="mx-auto max-w-3xl space-y-4 px-4 py-5">
         {error && (
-          <div className="flex gap-2 rounded-xl bg-red-500/20 p-3 text-sm text-red-300">
+          <div className="flex gap-2 rounded-xl bg-red-500/15 p-3 text-sm text-red-700 dark:text-red-300">
             <span className="material-icons">error_outline</span>
             {error}
           </div>
         )}
 
         {/* Customer (read-only) */}
-        <section className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
-          <p className="mb-1 text-xs text-slate-500">Booking as</p>
-          <p className="font-medium">
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+          <p className="mb-1 text-xs text-slate-500 dark:text-slate-400">Booking as</p>
+          <p className="font-medium text-slate-900 dark:text-white">
             {user?.name || (hasCustomer ? `Customer #${customerId}` : "—")}
           </p>
         </section>
 
         {/* Vehicle */}
-        <section className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
-          <p className="mb-2 text-sm font-semibold">Your vehicle</p>
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+          <p className="mb-2 text-sm font-semibold text-slate-900 dark:text-white">Your vehicle</p>
 
           {vehicles.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-slate-700 p-4 text-center">
-              <p className="text-sm text-slate-400">
+            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-center dark:border-slate-700 dark:bg-slate-950">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
                 No vehicles on your account.
               </p>
               <Link
                 to="/vehicles/create"
-                className="btn btn-sm mt-3 rounded-xl bg-teal-600 text-white"
+                className="btn btn-sm mt-3 rounded-xl border-0 bg-teal-600 text-white hover:bg-teal-500"
               >
                 Add vehicle
               </Link>
@@ -264,7 +268,7 @@ const CreateOrders = () => {
             <>
               <button
                 type="button"
-                className="flex w-full items-center justify-between rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-left"
+                className="flex w-full items-center justify-between rounded-xl border border-slate-300 bg-white px-4 py-3 text-left shadow-xs transition hover:border-slate-400 dark:border-slate-700 dark:bg-slate-950 dark:hover:border-slate-600"
                 onClick={() => {
                   setServiceRow(null);
                   setQ("");
@@ -272,7 +276,7 @@ const CreateOrders = () => {
                 }}
               >
                 <span
-                  className={selectedVehicle ? "text-white" : "text-slate-500"}
+                  className={selectedVehicle ? "font-medium text-slate-900 dark:text-white" : "text-slate-400 dark:text-slate-500"}
                 >
                   {selectedVehicle
                     ? `${selectedVehicle.plateNumber || ""} · ${
@@ -283,19 +287,19 @@ const CreateOrders = () => {
                       }`
                     : "Select vehicle"}
                 </span>
-                <span className="material-icons text-slate-500">
+                <span className="material-icons text-slate-400 dark:text-slate-500">
                   {vehicleOpen ? "expand_less" : "expand_more"}
                 </span>
               </button>
 
               {vehicleOpen && (
-                <div className="mt-2 overflow-hidden rounded-xl border border-slate-700 bg-slate-950">
-                  <div className="flex items-center gap-2 border-b border-slate-800 px-3">
-                    <span className="material-icons text-slate-500">
+                <div className="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-950">
+                  <div className="flex items-center gap-2 border-b border-slate-100 px-3 dark:border-slate-800">
+                    <span className="material-icons text-slate-400 dark:text-slate-500">
                       search
                     </span>
                     <input
-                      className="input input-ghost h-10 w-full border-0 bg-transparent"
+                      className="input input-ghost h-10 w-full border-0 bg-transparent text-slate-900 placeholder:text-slate-400 focus:outline-none dark:text-white dark:placeholder:text-slate-500"
                       placeholder="Search plate or name…"
                       value={q}
                       onChange={(e) => setQ(e.target.value)}
@@ -307,14 +311,14 @@ const CreateOrders = () => {
                       <button
                         key={v.id}
                         type="button"
-                        className="block w-full border-b border-slate-800 px-4 py-3 text-left text-sm hover:bg-slate-900"
+                        className="block w-full border-b border-slate-100 px-4 py-3 text-left text-sm transition hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900"
                         onClick={() => {
                           setVehicleId(v.id);
                           closeMenus();
                         }}
                       >
-                        <span className="font-medium">{v.plateNumber}</span>
-                        <span className="text-slate-400">
+                        <span className="font-medium text-slate-900 dark:text-white">{v.plateNumber}</span>
+                        <span className="text-slate-500 dark:text-slate-400">
                           {" "}
                           ·{" "}
                           {v.name ||
@@ -323,7 +327,7 @@ const CreateOrders = () => {
                       </button>
                     ))}
                     {vehicleOptions.length === 0 && (
-                      <p className="px-4 py-3 text-sm text-slate-500">
+                      <p className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
                         No match
                       </p>
                     )}
@@ -335,12 +339,12 @@ const CreateOrders = () => {
         </section>
 
         {/* Services */}
-        <section className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
           <div className="mb-3 flex items-center justify-between">
-            <p className="text-sm font-semibold">Services</p>
+            <p className="text-sm font-semibold text-slate-900 dark:text-white">Services</p>
             <button
               type="button"
-              className="btn btn-sm rounded-xl border-0 bg-teal-600 text-white"
+              className="btn btn-sm rounded-xl border-0 bg-teal-600 text-white hover:bg-teal-500"
               onClick={addEmptyService}
             >
               <span className="material-icons text-base">add</span>
@@ -349,7 +353,7 @@ const CreateOrders = () => {
           </div>
 
           {cart.length === 0 && (
-            <p className="py-6 text-center text-sm text-slate-500">
+            <p className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">
               Tap “Add service”, then pick Basic Wash, Wax, etc.
             </p>
           )}
@@ -358,13 +362,13 @@ const CreateOrders = () => {
             {cart.map((item, index) => (
               <div
                 key={item.key}
-                className="rounded-xl border border-slate-800 bg-slate-950 p-3"
+                className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950"
               >
                 {!item.serviceId ? (
                   <>
                     <button
                       type="button"
-                      className="flex w-full items-center justify-between rounded-lg border border-slate-700 px-3 py-2.5 text-left text-sm text-slate-500"
+                      className="flex w-full items-center justify-between rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-left text-sm text-slate-500 shadow-xs hover:border-slate-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-400 dark:hover:border-slate-600"
                       onClick={() => {
                         setVehicleOpen(false);
                         setQ("");
@@ -372,18 +376,18 @@ const CreateOrders = () => {
                       }}
                     >
                       Choose a service…
-                      <span className="material-icons text-slate-500">
+                      <span className="material-icons text-slate-400 dark:text-slate-500">
                         expand_more
                       </span>
                     </button>
                     {serviceRow === index && (
-                      <div className="mt-2 overflow-hidden rounded-xl border border-slate-700">
-                        <div className="flex items-center gap-2 border-b border-slate-800 px-3">
-                          <span className="material-icons text-slate-500">
+                      <div className="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-950">
+                        <div className="flex items-center gap-2 border-b border-slate-100 px-3 dark:border-slate-800">
+                          <span className="material-icons text-slate-400 dark:text-slate-500">
                             search
                           </span>
                           <input
-                            className="input input-ghost h-10 w-full border-0 bg-transparent"
+                            className="input input-ghost h-10 w-full border-0 bg-transparent text-slate-900 placeholder:text-slate-400 focus:outline-none dark:text-white dark:placeholder:text-slate-500"
                             placeholder="Search services…"
                             value={q}
                             onChange={(e) => setQ(e.target.value)}
@@ -395,11 +399,11 @@ const CreateOrders = () => {
                             <button
                               key={s.id}
                               type="button"
-                              className="block w-full border-b border-slate-800 px-4 py-3 text-left text-sm hover:bg-slate-900"
+                              className="block w-full border-b border-slate-100 px-4 py-3 text-left text-sm transition hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900"
                               onClick={() => chooseService(index, s)}
                             >
-                              {s.name}
-                              <span className="text-slate-400">
+                              <span className="font-medium text-slate-900 dark:text-white">{s.name}</span>
+                              <span className="text-slate-500 dark:text-slate-400">
                                 {" "}
                                 · {formatRp(Number(s.price || 0))}
                                 {s.duration ? ` · ${s.duration} min` : ""}
@@ -407,7 +411,7 @@ const CreateOrders = () => {
                             </button>
                           ))}
                           {serviceOptions.length === 0 && (
-                            <p className="px-4 py-3 text-sm text-slate-500">
+                            <p className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
                               No match
                             </p>
                           )}
@@ -418,17 +422,17 @@ const CreateOrders = () => {
                 ) : (
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="font-medium">{item.name}</p>
-                      <p className="text-xs text-slate-500">
+                      <p className="font-medium text-slate-900 dark:text-white">{item.name}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
                         {item.duration} min · {formatRp(item.price)}
                       </p>
                     </div>
                     <div className="flex items-center gap-3">
-                      <p className="font-semibold text-teal-400">
+                      <p className="font-semibold text-teal-600 dark:text-teal-400">
                         {formatRp(item.subtotal)}
                       </p>
                       <button type="button" onClick={() => removeRow(index)}>
-                        <span className="material-icons text-red-400">
+                        <span className="material-icons text-red-500 hover:text-red-600 dark:text-red-400">
                           delete
                         </span>
                       </button>
@@ -439,29 +443,29 @@ const CreateOrders = () => {
             ))}
           </div>
 
-          <label className="mt-4 block text-sm text-slate-400">
+          <label className="mt-4 block text-sm font-medium text-slate-700 dark:text-slate-300">
             Note (optional)
           </label>
           <textarea
-            className="textarea textarea-bordered mt-1 w-full rounded-xl border-slate-700 bg-slate-950"
+            className="textarea textarea-bordered mt-1 w-full rounded-xl border-slate-300 bg-white text-slate-900 focus:border-teal-500 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-white"
             rows={2}
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder="Anything the crew should know…"
           />
 
-          <div className="mt-4 flex justify-between border-t border-slate-800 pt-4 text-center">
+          <div className="mt-4 flex justify-between border-t border-slate-200 pt-4 text-center dark:border-slate-800">
             <div>
-              <p className="text-xs text-slate-500">Items</p>
-              <p className="text-lg font-bold">{totals.qty}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Items</p>
+              <p className="text-lg font-bold text-slate-900 dark:text-white">{totals.qty}</p>
             </div>
             <div>
-              <p className="text-xs text-slate-500">Duration</p>
-              <p className="text-lg font-bold">{totals.mins} min</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Duration</p>
+              <p className="text-lg font-bold text-slate-900 dark:text-white">{totals.mins} min</p>
             </div>
             <div>
-              <p className="text-xs text-slate-500">Total</p>
-              <p className="text-lg font-bold text-teal-400">
+              <p className="text-xs text-slate-500 dark:text-slate-400">Total</p>
+              <p className="text-lg font-bold text-teal-600 dark:text-teal-400">
                 {formatRp(totals.amount)}
               </p>
             </div>
@@ -471,13 +475,13 @@ const CreateOrders = () => {
         <div className="flex gap-3 pb-6">
           <Link
             to="/orders"
-            className="btn flex-1 rounded-xl border-slate-700 bg-transparent text-slate-300"
+            className="btn flex-1 rounded-xl border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-transparent dark:text-slate-300 dark:hover:bg-slate-800"
           >
             Cancel
           </Link>
           <button
             type="button"
-            className="btn flex-1 rounded-xl border-0 bg-indigo-500 text-white"
+            className="btn flex-1 rounded-xl border-0 bg-teal-600 text-white hover:bg-teal-500"
             disabled={saving || !hasCustomer}
             onClick={() => void submit()}
           >

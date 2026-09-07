@@ -1,19 +1,39 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { getStoredTheme, toggleTheme, type Theme } from '../../libs/theme'
 
-const ThemeToggle = () => {
+interface ThemeToggleProps {
+  className?: string
+}
+
+const ThemeToggle = ({ className = '' }: ThemeToggleProps) => {
   const [theme, setTheme] = useState<Theme>(() => getStoredTheme())
 
-  const onToggle = () => setTheme(toggleTheme())
+  useEffect(() => {
+    const onThemeChange = (e: Event) => {
+      const customEvent = e as CustomEvent<Theme>
+      if (customEvent.detail === 'dark' || customEvent.detail === 'light') {
+        setTheme(customEvent.detail)
+      } else {
+        setTheme(getStoredTheme())
+      }
+    }
+    window.addEventListener('theme-change', onThemeChange)
+    return () => window.removeEventListener('theme-change', onThemeChange)
+  }, [])
+
+  const onToggle = () => {
+    setTheme(toggleTheme())
+  }
 
   return (
     <button
       type="button"
-      className="btn btn-ghost btn-circle"
+      className={`btn btn-ghost btn-circle ${className}`}
       onClick={onToggle}
-      aria-label="Toggle dark mode"
+      aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+      title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
     >
-      <span className="material-symbols-outlined">
+      <span className="material-icons text-xl">
         {theme === 'dark' ? 'light_mode' : 'dark_mode'}
       </span>
     </button>

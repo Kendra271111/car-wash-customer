@@ -5,6 +5,7 @@ import axios from "axios";
 import useOrders, { type Order } from "../../../hooks/useOrder";
 import { loadSnap } from "../../../libs/midtrans";
 import { api } from "../../../api/api";
+import ThemeToggle from "../../ui/themeToggle";
 
 const METHODS = [
   { id: "QRIS", label: "QRIS", icon: "qr_code_2", hint: "Scan QR at checkout" },
@@ -220,14 +221,14 @@ const OrderPayment = () => {
       {error && <Banner tone="error">{error}</Banner>}
 
       {/* Summary hero */}
-      <section className="mb-4 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
-        <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
+      <section className="mb-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-800">
           <div>
-            <p className="text-xs text-slate-500">Order #{order.id}</p>
-            <p className="font-semibold text-white">
+            <p className="text-xs text-slate-500 dark:text-slate-400">Order #{order.id}</p>
+            <p className="font-semibold text-slate-900 dark:text-white">
               {order.customer?.name || `Customer #${order.customerId}`}
             </p>
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-slate-600 dark:text-slate-400">
               {vehicleLabel}
               {order.vehicle?.plateNumber
                 ? ` · ${order.vehicle.plateNumber}`
@@ -237,8 +238,8 @@ const OrderPayment = () => {
           <span
             className={`rounded-full px-3 py-1 text-xs font-bold tracking-wide ${
               paid
-                ? "bg-emerald-500/20 text-emerald-300"
-                : "bg-amber-500/20 text-amber-300"
+                ? "bg-emerald-500/15 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300"
+                : "bg-amber-500/15 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300"
             }`}
           >
             {paid ? "PAID" : "UNPAID"}
@@ -246,27 +247,27 @@ const OrderPayment = () => {
         </div>
 
         <div className="px-4 py-3">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
             Services
           </p>
           {(order.order_items || []).length === 0 ? (
-            <p className="text-sm text-slate-500">No services</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">No services</p>
           ) : (
             (order.order_items || []).map((item, i) => (
               <div
                 key={item.id ?? i}
-                className="flex items-start justify-between gap-3 py-2 border-b border-slate-800/80 last:border-0"
+                className="flex items-start justify-between gap-3 py-2 border-b border-slate-100 last:border-0 dark:border-slate-800/80"
               >
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-white">
+                  <p className="truncate text-sm font-medium text-slate-900 dark:text-white">
                     {(item as { service?: { name?: string } }).service?.name ||
                       `Service #${item.serviceId}`}
                   </p>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
                     {item.duration || 0} min · qty {item.qty || 1}
                   </p>
                 </div>
-                <p className="shrink-0 text-sm font-medium text-slate-200">
+                <p className="shrink-0 text-sm font-medium text-slate-700 dark:text-slate-200">
                   {formatRp(Number(item.subtotal || 0))}
                 </p>
               </div>
@@ -274,19 +275,19 @@ const OrderPayment = () => {
           )}
         </div>
 
-        <div className="flex items-center justify-between bg-slate-950/60 px-4 py-4">
-          <span className="text-sm font-semibold text-slate-400">
+        <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50 px-4 py-4 dark:border-slate-800 dark:bg-slate-950/60">
+          <span className="text-sm font-semibold text-slate-600 dark:text-slate-400">
             Total due
           </span>
-          <span className="text-2xl font-bold text-teal-400">
+          <span className="text-2xl font-bold text-teal-600 dark:text-teal-400">
             {formatRp(total)}
           </span>
         </div>
       </section>
 
       {!paid && (
-        <section className="mb-4 rounded-2xl border border-slate-800 bg-slate-900 p-4">
-          <p className="mb-3 text-sm font-semibold text-white">
+        <section className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+          <p className="mb-3 text-sm font-semibold text-slate-900 dark:text-white">
             Payment method
           </p>
           <div className="grid grid-cols-3 gap-2">
@@ -299,8 +300,8 @@ const OrderPayment = () => {
                   onClick={() => setMethod(m.id)}
                   className={`flex flex-col items-center gap-1 rounded-xl border px-2 py-3 text-center transition ${
                     active
-                      ? "border-teal-500/60 bg-teal-500/15 text-teal-200"
-                      : "border-slate-700 bg-slate-950 text-slate-400 hover:border-slate-600"
+                      ? "border-teal-500/60 bg-teal-500/15 text-teal-700 dark:text-teal-200"
+                      : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-400 dark:hover:border-slate-600"
                   }`}
                 >
                   <span className="material-icons text-2xl">{m.icon}</span>
@@ -310,10 +311,10 @@ const OrderPayment = () => {
             })}
           </div>
 
-          <div className="mt-4 flex gap-3 rounded-xl border border-slate-800 bg-slate-950/80 p-3">
-            <span className="material-icons text-teal-400">info</span>
-            <p className="text-sm leading-relaxed text-slate-300">
-              Pay with <strong className="text-white">{selected.label}</strong>.
+          <div className="mt-4 flex gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950/80">
+            <span className="material-icons text-teal-600 dark:text-teal-400">info</span>
+            <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+              Pay with <strong className="text-slate-900 dark:text-white">{selected.label}</strong>.
               A secure payment window will open. After you finish, we will bring
               you back to your order. Confirmation can take a few seconds.
             </p>
@@ -351,7 +352,7 @@ const OrderPayment = () => {
         )}
         <Link
           to={`/orders/${id}`}
-          className="btn w-full rounded-xl border border-slate-700 bg-transparent text-slate-300"
+          className="btn w-full rounded-xl border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-transparent dark:text-slate-300 dark:hover:bg-slate-800"
         >
           Cancel
         </Link>
@@ -362,19 +363,22 @@ const OrderPayment = () => {
 
 function Page({ id, children }: { id?: string; children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      <header className="sticky top-0 z-30 border-b border-slate-800 bg-slate-950/95 backdrop-blur">
-        <div className="mx-auto flex h-14 max-w-3xl items-center gap-2 px-4">
-          <Link
-            to={`/orders/${id}`}
-            className="btn btn-ghost btn-sm btn-circle text-slate-300"
-          >
-            <span className="material-icons">arrow_back</span>
-          </Link>
-          <div>
-            <h1 className="text-lg font-bold leading-tight">Checkout</h1>
-            <p className="text-xs text-slate-500">Order #{id}</p>
+    <div className="min-h-screen bg-slate-50 text-slate-900 transition-colors dark:bg-slate-950 dark:text-slate-100">
+      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 text-slate-900 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 dark:text-slate-100">
+        <div className="mx-auto flex h-14 max-w-3xl items-center justify-between gap-2 px-4">
+          <div className="flex items-center gap-2">
+            <Link
+              to={`/orders/${id}`}
+              className="btn btn-ghost btn-sm btn-circle text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+            >
+              <span className="material-icons">arrow_back</span>
+            </Link>
+            <div>
+              <h1 className="text-lg font-bold leading-tight">Checkout</h1>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Order #{id}</p>
+            </div>
           </div>
+          <ThemeToggle />
         </div>
       </header>
       <main className="mx-auto max-w-3xl px-4 py-5">{children}</main>

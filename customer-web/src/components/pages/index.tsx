@@ -153,14 +153,14 @@ const Index = () => {
   );
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      <header className="sticky top-0 z-30 border-b border-slate-800 bg-slate-950/95 backdrop-blur">
+    <div className="min-h-screen bg-slate-50 text-slate-900 transition-colors dark:bg-slate-950 dark:text-slate-100">
+      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95">
         <div className="mx-auto flex h-14 max-w-3xl items-center justify-between gap-3 px-4 sm:px-6">
           <Link to="/dashboard" className="flex min-w-0 items-center gap-2">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-teal-400 to-teal-700 text-white shadow">
               <span className="material-icons text-xl">directions_car</span>
             </div>
-            <span className="truncate font-bold tracking-tight">
+            <span className="truncate font-bold tracking-tight text-slate-900 dark:text-white">
               WASHINGTON
             </span>
           </Link>
@@ -168,22 +168,24 @@ const Index = () => {
           <nav className="flex items-center gap-1 sm:gap-2">
             <Link
               to="/vehicles"
-              className="btn btn-ghost btn-sm hidden rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white sm:inline-flex"
+              className="btn btn-ghost btn-sm hidden rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white sm:inline-flex"
             >
               My Vehicles
             </Link>
             <Link
               to="/orders"
-              className="btn btn-ghost btn-sm hidden rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white sm:inline-flex"
+              className="btn btn-ghost btn-sm hidden rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white sm:inline-flex"
             >
               My Orders
             </Link>
             <Link
               to="/history"
-              className="btn btn-ghost btn-sm hidden rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white sm:inline-flex"
+              className="btn btn-ghost btn-sm hidden rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white sm:inline-flex"
             >
               My History
             </Link>
+
+            <ThemeToggle className="text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800" />
 
             <div className="dropdown dropdown-end">
               <div
@@ -197,15 +199,15 @@ const Index = () => {
               </div>
               <ul
                 tabIndex={0}
-                className="menu dropdown-content z-40 mt-2 w-52 rounded-xl border border-slate-700 bg-slate-900 p-2 shadow-xl"
+                className="menu dropdown-content z-40 mt-2 w-52 rounded-xl border border-slate-200 bg-white p-2 text-slate-900 shadow-xl dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
               >
                 <li className="menu-title px-3 py-1">
-                  <span className="text-xs text-slate-500">Signed in as</span>
-                  <span className="text-sm font-semibold text-slate-100">
+                  <span className="text-xs text-slate-400 dark:text-slate-500">Signed in as</span>
+                  <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                     {customerName}
                   </span>
                 </li>
-                <div className="divider my-1" />
+                <div className="divider my-1 border-slate-100 dark:border-slate-800" />
                 <li>
                   <Link to="/profile">Profile</Link>
                 </li>
@@ -283,7 +285,7 @@ const Index = () => {
           ].map((s) => (
             <div
               key={s.label}
-              className="rounded-2xl border border-slate-800 bg-slate-900/80 p-3 sm:p-4"
+              className="rounded-2xl border border-slate-200 bg-white p-3 shadow-xs dark:border-slate-800 dark:bg-slate-900/80 sm:p-4"
             >
               <div
                 className={`mb-2 flex h-9 w-9 items-center justify-center rounded-xl ${s.iconBg}`}
@@ -292,25 +294,25 @@ const Index = () => {
                   {s.icon}
                 </span>
               </div>
-              <p className="text-xl font-bold text-white sm:text-2xl">
+              <p className="text-xl font-bold text-slate-900 dark:text-white sm:text-2xl">
                 {s.value}
               </p>
-              <p className="text-xs font-medium text-slate-300 sm:text-sm">
+              <p className="text-xs font-medium text-slate-600 dark:text-slate-300 sm:text-sm">
                 {s.label}
               </p>
-              <p className="mt-0.5 hidden text-[10px] text-slate-500 sm:block">
+              <p className="mt-0.5 hidden text-[10px] text-slate-400 dark:text-slate-500 sm:block">
                 {s.desc}
               </p>
             </div>
           ))}
         </section>
 
-        <section className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-5">
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900/80 sm:p-5">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-white">Recent Orders</h2>
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Recent Orders</h2>
             <Link
               to="/orders"
-              className="text-sm font-medium text-teal-400 hover:text-teal-300"
+              className="text-sm font-medium text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300"
             >
               See all
             </Link>
@@ -318,19 +320,19 @@ const Index = () => {
 
           {loading && (
             <div className="flex justify-center py-10">
-              <span className="loading loading-spinner loading-md text-teal-400" />
+              <span className="loading loading-spinner loading-md text-teal-500" />
             </div>
           )}
 
           {!loading && error && (
-            <div className="rounded-xl bg-red-500/20 p-4 text-sm text-red-300">
+            <div className="rounded-xl bg-red-500/15 p-4 text-sm text-red-700 dark:text-red-300">
               {error}
             </div>
           )}
 
           {!loading && !error && myRecentOrders.length === 0 && (
-            <div className="py-10 text-center text-sm text-slate-500">
-              <span className="material-icons mb-2 text-3xl text-slate-600">
+            <div className="py-10 text-center text-sm text-slate-500 dark:text-slate-400">
+              <span className="material-icons mb-2 text-3xl text-slate-400 dark:text-slate-600">
                 receipt_long
               </span>
               <p>No orders yet.</p>
@@ -349,28 +351,28 @@ const Index = () => {
                 <Link
                   key={o.id}
                   to={`/orders/${o.id}`}
-                  className="flex items-start justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950/50 p-3 transition-colors hover:border-teal-500/40"
+                  className="flex items-start justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 transition-colors hover:border-teal-500/40 dark:border-slate-800 dark:bg-slate-950/50"
                 >
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-mono text-sm text-slate-400">
+                      <p className="font-mono text-sm text-slate-500 dark:text-slate-400">
                         #{o.id}
                       </p>
                       <StatusBadge status={o.status} />
                     </div>
-                    <p className="mt-1 truncate text-sm font-medium text-white">
+                    <p className="mt-1 truncate text-sm font-medium text-slate-900 dark:text-white">
                       {serviceSummary(o)}
                     </p>
-                    <p className="mt-0.5 text-xs text-slate-500">
+                    <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
                       {vehicleLabel(o)}
                       {o.createdAt ? ` · ${formatDate(o.createdAt)}` : ""}
                     </p>
                   </div>
                   <div className="shrink-0 text-right">
-                    <p className="text-sm font-semibold text-white">
+                    <p className="text-sm font-semibold text-slate-900 dark:text-white">
                       {formatRp(orderTotal(o))}
                     </p>
-                    <span className="material-icons text-base text-slate-600">
+                    <span className="material-icons text-base text-slate-400 dark:text-slate-600">
                       chevron_right
                     </span>
                   </div>

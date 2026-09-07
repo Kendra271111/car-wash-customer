@@ -5,7 +5,7 @@ import axios from 'axios'
 import type { Order } from '../../hooks/useOrder'
 import useAuth from '../../hooks/useAuth'
 import useOrders from '../../hooks/useOrder'
-
+import ThemeToggle from '../ui/themeToggle'
 
 const formatDate = (dateString?: string) => {
   if (!dateString) return '—'
@@ -129,7 +129,6 @@ const History = () => {
     setStartDate((s) => s)
     setEndDate((e) => e)
     setSearch((q) => q)
-    // trigger effect by toggling — simpler: void fetch again
     void useOrders
       .fetchOrders(search, {
         startDate: startDate || undefined,
@@ -141,54 +140,57 @@ const History = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      <header className="sticky top-0 z-30 border-b border-slate-800 bg-slate-950/95 backdrop-blur">
+    <div className="min-h-screen bg-slate-50 text-slate-900 transition-colors dark:bg-slate-950 dark:text-slate-100">
+      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 text-slate-900 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 dark:text-slate-100">
         <div className="mx-auto flex h-14 max-w-3xl items-center justify-between gap-3 px-4 sm:px-6">
           <div className="flex items-center gap-2">
             <Link
               to="/dashboard"
-              className="btn btn-ghost btn-sm btn-circle text-slate-300 hover:bg-slate-800"
+              className="btn btn-ghost btn-sm btn-circle text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
             >
               <span className="material-icons">arrow_back</span>
             </Link>
             <h1 className="text-lg font-bold">Order History</h1>
           </div>
-          <button
-            type="button"
-            onClick={reload}
-            className="btn btn-sm rounded-xl border-0 bg-slate-800 text-slate-300"
-          >
-            <span className="material-icons text-lg">refresh</span>
-            Refresh
-          </button>
+          <div className="flex items-center gap-2">
+            <ThemeToggle className="text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800" />
+            <button
+              type="button"
+              onClick={reload}
+              className="btn btn-sm rounded-xl border border-slate-200 bg-slate-100 text-slate-800 hover:bg-slate-200 dark:border-0 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+            >
+              <span className="material-icons text-lg">refresh</span>
+              Refresh
+            </button>
+          </div>
         </div>
       </header>
 
       <main className="mx-auto max-w-3xl px-4 py-5 sm:px-6">
         {/* Date + search */}
-        <section className="mb-5 rounded-2xl border border-slate-800 bg-slate-900 p-4">
-          <p className="mb-3 text-xs font-medium uppercase tracking-wider text-slate-500">
+        <section className="mb-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+          <p className="mb-3 text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
             Date range
           </p>
           <div className="mb-4 flex flex-wrap gap-2">
             <button
               type="button"
               onClick={() => applyPreset(0)}
-              className="rounded-lg bg-slate-800 px-3 py-1.5 text-sm text-slate-300"
+              className="rounded-lg bg-slate-100 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
             >
               Today
             </button>
             <button
               type="button"
               onClick={() => applyPreset(7)}
-              className="rounded-lg bg-slate-800 px-3 py-1.5 text-sm text-slate-300"
+              className="rounded-lg bg-slate-100 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
             >
               Last 7 days
             </button>
             <button
               type="button"
               onClick={() => applyPreset(30)}
-              className="rounded-lg bg-slate-800 px-3 py-1.5 text-sm text-slate-300"
+              className="rounded-lg bg-slate-100 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
             >
               Last 30 days
             </button>
@@ -197,17 +199,17 @@ const History = () => {
           <div className="mb-3 flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
             <input
               type="date"
-              className="input input-bordered flex-1 rounded-xl border-slate-700 bg-slate-950"
+              className="input input-bordered flex-1 rounded-xl border-slate-300 bg-white text-slate-900 focus:border-teal-500 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-white"
               value={startDate}
               onChange={(e) => {
                 setStartDate(e.target.value)
                 setLoading(true)
               }}
             />
-            <span className="hidden text-slate-500 sm:inline">→</span>
+            <span className="hidden text-slate-400 sm:inline dark:text-slate-500">→</span>
             <input
               type="date"
-              className="input input-bordered flex-1 rounded-xl border-slate-700 bg-slate-950"
+              className="input input-bordered flex-1 rounded-xl border-slate-300 bg-white text-slate-900 focus:border-teal-500 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-white"
               value={endDate}
               onChange={(e) => {
                 setEndDate(e.target.value)
@@ -220,16 +222,16 @@ const History = () => {
             <button
               type="button"
               onClick={clearDates}
-              className="mb-3 text-sm text-teal-400"
+              className="mb-3 text-sm font-medium text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300"
             >
               Clear dates
             </button>
           )}
 
-          <div className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-950 px-3">
-            <span className="material-icons text-slate-500">search</span>
+          <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 shadow-xs dark:border-slate-700 dark:bg-slate-950">
+            <span className="material-icons text-slate-400 dark:text-slate-500">search</span>
             <input
-              className="input input-ghost w-full border-0 bg-transparent focus:outline-none"
+              className="input input-ghost w-full border-0 bg-transparent text-slate-900 placeholder:text-slate-400 focus:outline-none dark:text-white dark:placeholder:text-slate-500"
               placeholder="Search history..."
               value={search}
               onChange={(e) => {
@@ -240,7 +242,7 @@ const History = () => {
             {search.length > 0 && (
               <button
                 type="button"
-                className="btn btn-ghost btn-xs"
+                className="btn btn-ghost btn-xs text-slate-400 hover:text-slate-600 dark:hover:text-white"
                 onClick={() => {
                   setSearch('')
                   setLoading(true)
@@ -259,10 +261,10 @@ const History = () => {
         </div>
 
         {error && (
-          <div className="mb-4 flex items-center gap-3 rounded-xl bg-red-500/20 p-4 text-sm text-red-300">
+          <div className="mb-4 flex items-center gap-3 rounded-xl bg-red-500/15 p-4 text-sm text-red-700 dark:text-red-300">
             <span className="material-icons">error_outline</span>
             <span className="flex-1">{error}</span>
-            <button type="button" className="font-semibold text-red-400" onClick={reload}>
+            <button type="button" className="font-semibold text-red-700 underline dark:text-red-400" onClick={reload}>
               Retry
             </button>
           </div>
@@ -270,12 +272,12 @@ const History = () => {
 
         {loading ? (
           <div className="flex flex-col items-center py-16">
-            <span className="loading loading-spinner loading-lg text-teal-400" />
-            <p className="mt-3 text-sm text-slate-500">Loading history...</p>
+            <span className="loading loading-spinner loading-lg text-teal-500" />
+            <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">Loading history...</p>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="py-16 text-center text-slate-500">
-            <span className="material-icons mb-2 text-5xl text-slate-600">inventory_2</span>
+          <div className="py-16 text-center text-slate-500 dark:text-slate-400">
+            <span className="material-icons mb-2 text-5xl text-slate-400 dark:text-slate-600">inventory_2</span>
             <p>No completed orders found.</p>
           </div>
         ) : (
@@ -288,16 +290,16 @@ const History = () => {
               return (
                 <div
                   key={order.id}
-                  className="rounded-2xl border border-slate-800 bg-slate-900 p-4"
+                  className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900"
                 >
                   <div className="mb-2 flex items-center justify-between gap-2">
-                    <span className="font-mono text-sm text-slate-400">#{order.id}</span>
+                    <span className="font-mono text-sm text-slate-500 dark:text-slate-400">#{order.id}</span>
                     <span className="rounded-full bg-emerald-500 px-3 py-1 text-xs font-semibold text-white">
                       Completed
                     </span>
                   </div>
 
-                  <p className="font-semibold text-white">
+                  <p className="font-semibold text-slate-900 dark:text-white">
                     {vehicle
                       ? `${vehicle.brand || ''} ${vehicle.model || ''}`.trim() ||
                         vehicle.name ||
@@ -305,25 +307,25 @@ const History = () => {
                       : `Vehicle #${order.vehicleId}`}
                   </p>
                   {vehicle?.plateNumber && (
-                    <p className="mt-0.5 text-sm text-slate-500">{vehicle.plateNumber}</p>
+                    <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-400">{vehicle.plateNumber}</p>
                   )}
 
                   <div className="mt-3 flex items-center justify-between">
-                    <span className="text-xs text-slate-500">
+                    <span className="text-xs text-slate-500 dark:text-slate-400">
                       {formatDate(order.createdAt)}
                     </span>
-                    <span className="text-sm text-slate-400">
+                    <span className="text-sm text-slate-600 dark:text-slate-400">
                       {serviceCount} service{serviceCount !== 1 ? 's' : ''}
                     </span>
                   </div>
 
                   <div className="mt-2 flex items-center justify-between">
-                    <p className="font-semibold text-teal-400">
+                    <p className="font-semibold text-teal-600 dark:text-teal-400">
                       {formatRp(orderTotal(order))}
                     </p>
                     <Link
                       to={`/orders/${order.id}`}
-                      className="btn btn-sm rounded-xl border-0 bg-slate-800 text-white"
+                      className="btn btn-sm rounded-xl border border-slate-200 bg-slate-100 text-slate-800 hover:bg-slate-200 dark:border-0 dark:bg-slate-800 dark:text-white dark:hover:bg-slate-700"
                     >
                       View
                     </Link>

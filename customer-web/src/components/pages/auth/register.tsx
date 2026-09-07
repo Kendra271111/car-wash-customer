@@ -3,6 +3,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
 import axios from 'axios'
 import useAuth from '../../../hooks/useAuth'
+import ThemeToggle from '../../ui/themeToggle'
 import manWashingCar1 from '../../../assets/img/bg/manwashingacar.jpeg'
 import manWashingCar2 from '../../../assets/img/bg/manwashingcar2.jpeg'
 import manWashingCar3 from '../../../assets/img/bg/manwashingcar3.jpeg'
@@ -41,7 +42,7 @@ const CAPTIONS = [
 ]
 
 const fieldClass =
-  'w-full rounded-2xl border-0 bg-slate-800 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500 focus:ring-2 focus:ring-teal-500/40'
+  'w-full rounded-2xl border border-slate-300 bg-slate-100 px-4 py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-teal-500/40 dark:border-0 dark:bg-slate-800 dark:text-white dark:placeholder:text-slate-500'
 
 const Register = () => {
   const navigate = useNavigate()
@@ -112,30 +113,34 @@ const Register = () => {
   const caption = CAPTIONS[bg % CAPTIONS.length]
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-950 p-4 sm:p-6 lg:p-10">
-      <div className="flex w-full max-w-5xl overflow-hidden rounded-[2rem] border border-slate-800 bg-slate-900 shadow-2xl shadow-black/40">
+    <div className="relative flex min-h-screen items-center justify-center bg-slate-100 p-4 transition-colors sm:p-6 lg:p-10 dark:bg-slate-950">
+      <div className="absolute top-4 right-4 z-20">
+        <ThemeToggle className="bg-white/80 shadow-sm backdrop-blur dark:bg-slate-800/80" />
+      </div>
+
+      <div className="flex w-full max-w-5xl overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-2xl shadow-slate-200/50 dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/40">
         <div className="flex w-full flex-col justify-between p-8 sm:p-10 lg:w-1/2 lg:p-12">
           <div>
             <div className="mb-8 flex items-center gap-2">
               <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal-600 text-white">
                 <span className="material-icons text-xl">local_car_wash</span>
               </span>
-              <span className="text-lg font-semibold tracking-tight text-white">
+              <span className="text-lg font-semibold tracking-tight text-slate-900 dark:text-white">
                 WASHINGTON
               </span>
             </div>
 
-            <h1 className="text-3xl font-bold tracking-tight text-white">
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
               Create account
             </h1>
-            <p className="mt-2 max-w-sm text-sm leading-relaxed text-slate-400">
+            <p className="mt-2 max-w-sm text-sm leading-relaxed text-slate-500 dark:text-slate-400">
               Fill in your details to start booking car washes with WASHINGTON.
             </p>
 
             {error && (
               <div
                 role="alert"
-                className="mt-5 flex items-start gap-2 rounded-xl bg-red-500/15 px-3 py-2.5 text-sm text-red-300"
+                className="mt-5 flex items-start gap-2 rounded-xl bg-red-500/15 px-3 py-2.5 text-sm text-red-700 dark:text-red-300"
               >
                 <span className="material-icons mt-0.5 text-lg">error_outline</span>
                 <span>{error}</span>
@@ -185,7 +190,7 @@ const Register = () => {
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-500 hover:text-slate-300"
+                  className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
                   onClick={() => setShowPass((v) => !v)}
                   aria-label={showPass ? 'Hide password' : 'Show password'}
                 >
@@ -210,7 +215,7 @@ const Register = () => {
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-500 hover:text-slate-300"
+                  className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
                   onClick={() => setShowConfirm((v) => !v)}
                   aria-label={showConfirm ? 'Hide password' : 'Show password'}
                 >
@@ -220,13 +225,13 @@ const Register = () => {
                 </button>
               </div>
               {confirm && !passwordsMatch && (
-                <p className="text-xs text-red-400">Passwords do not match</p>
+                <p className="text-xs text-red-500 dark:text-red-400">Passwords do not match</p>
               )}
 
               <button
                 type="submit"
                 disabled={!canSubmit}
-                className="mt-1 flex w-full items-center justify-center rounded-2xl bg-teal-600 py-3.5 text-sm font-semibold text-white transition hover:bg-teal-500 disabled:cursor-not-allowed disabled:bg-slate-700"
+                className="mt-1 flex w-full items-center justify-center rounded-2xl bg-teal-600 py-3.5 text-sm font-semibold text-white transition hover:bg-teal-500 disabled:cursor-not-allowed disabled:bg-slate-300 dark:disabled:bg-slate-700"
               >
                 {loading ? (
                   <span className="loading loading-spinner loading-sm" />
@@ -236,18 +241,18 @@ const Register = () => {
               </button>
             </form>
 
-            <p className="mt-6 text-center text-sm text-slate-400">
+            <p className="mt-6 text-center text-sm text-slate-600 dark:text-slate-400">
               Already have an account?{' '}
               <Link
                 to="/login"
-                className="font-semibold text-teal-400 hover:text-teal-300"
+                className="font-semibold text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300"
               >
                 Sign in
               </Link>
             </p>
           </div>
 
-          <p className="mt-8 text-center text-xs text-slate-500">
+          <p className="mt-8 text-center text-xs text-slate-400 dark:text-slate-500">
             WASHINGTON Car Wash · Customer portal
           </p>
         </div>

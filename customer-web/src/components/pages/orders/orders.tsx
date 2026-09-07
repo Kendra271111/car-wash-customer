@@ -9,6 +9,7 @@ import useOrders, {
   statusLabels,
   statusColors,
 } from '../../../hooks/useOrder'
+import ThemeToggle from '../../ui/themeToggle'
 
 const FILTERS: { key: 'all' | OrderStatus; label: string }[] = [
   { key: 'all', label: 'All' },
@@ -44,45 +45,45 @@ const Orders = () => {
   const [filter, setFilter] = useState<'all' | OrderStatus>('all')
   const [search, setSearch] = useState('')
 
- const loadOrders = useCallback(async () => {
-  setError(null)
-  try {
-    const data = await useOrders.fetchOrders(search)
-    setOrders(Array.isArray(data) ? data : [])
-  } catch (err: unknown) {
-    if (axios.isAxiosError(err)) {
-      setError(err.response?.data?.message || 'Failed to load orders.')
-    } else {
-      setError('Failed to load orders.')
-    }
-  } finally {
-    setLoading(false)
-  }
-}, [search])
-
-useEffect(() => {
-  let cancelled = false;
-  (async () => {
+  const loadOrders = useCallback(async () => {
     setError(null)
     try {
       const data = await useOrders.fetchOrders(search)
-      if (!cancelled) setOrders(Array.isArray(data) ? data : [])
+      setOrders(Array.isArray(data) ? data : [])
     } catch (err: unknown) {
-      if (cancelled) return
       if (axios.isAxiosError(err)) {
         setError(err.response?.data?.message || 'Failed to load orders.')
       } else {
         setError('Failed to load orders.')
       }
     } finally {
-      if (!cancelled) setLoading(false)
+      setLoading(false)
     }
-  })()
+  }, [search])
 
-  return () => {
-    cancelled = true
-  }
-}, [search])
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      setError(null)
+      try {
+        const data = await useOrders.fetchOrders(search)
+        if (!cancelled) setOrders(Array.isArray(data) ? data : [])
+      } catch (err: unknown) {
+        if (cancelled) return
+        if (axios.isAxiosError(err)) {
+          setError(err.response?.data?.message || 'Failed to load orders.')
+        } else {
+          setError('Failed to load orders.')
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [search])
 
   const mine = useMemo(() => {
     if (customerId == null) return orders
@@ -110,46 +111,52 @@ useEffect(() => {
   }, [mine, filter, search])
 
   const badgeClass = (status: OrderStatus) => {
-    // DaisyUI badges from your hook, fallback to RN-style colors
     const map = statusColors as Record<string, string>
     return map[status] || 'badge-ghost'
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      <header className="sticky top-0 z-30 border-b border-slate-800 bg-slate-950/95 backdrop-blur">
+    <div className="min-h-screen bg-slate-50 text-slate-900 transition-colors dark:bg-slate-950 dark:text-slate-100">
+      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 text-slate-900 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 dark:text-slate-100">
         <div className="mx-auto flex h-14 max-w-3xl items-center justify-between gap-3 px-4 sm:px-6">
           <div className="flex items-center gap-2">
             <Link
               to="/dashboard"
-              className="btn btn-ghost btn-sm btn-circle text-slate-300 hover:bg-slate-800"
+              className="btn btn-ghost btn-sm btn-circle text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
             >
               <span className="material-icons">arrow_back</span>
             </Link>
             <h1 className="text-lg font-bold">My Orders</h1>
           </div>
-          <Link
-            to="/orders/create"
-            className="btn btn-sm rounded-xl border-0 bg-indigo-500 text-white hover:bg-indigo-600"
-          >
-            <span className="material-icons text-lg">add</span>
-            Book a Wash
-          </Link>
+          <div className="flex items-center gap-2">
+            <ThemeToggle className="text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800" />
+            <Link
+              to="/orders/create"
+              className="btn btn-sm rounded-xl border-0 bg-indigo-500 text-white hover:bg-indigo-600"
+            >
+              <span className="material-icons text-lg">add</span>
+              Book a Wash
+            </Link>
+          </div>
         </div>
       </header>
 
       <main className="mx-auto max-w-3xl px-4 py-5 sm:px-6">
         {/* Search */}
-        <div className="mb-4 flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900 px-3">
-          <span className="material-icons text-slate-500">search</span>
+        <div className="mb-4 flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+          <span className="material-icons text-slate-400 dark:text-slate-500">search</span>
           <input
-            className="input input-ghost w-full border-0 bg-transparent focus:outline-none"
+            className="input input-ghost w-full border-0 bg-transparent text-slate-900 placeholder:text-slate-400 focus:outline-none dark:text-white dark:placeholder:text-slate-500"
             placeholder="Search orders..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
           {search.length > 0 && (
-            <button type="button" className="btn btn-ghost btn-xs" onClick={() => setSearch('')}>
+            <button
+              type="button"
+              className="btn btn-ghost btn-xs text-slate-400 hover:text-slate-600 dark:hover:text-white"
+              onClick={() => setSearch('')}
+            >
               <span className="material-icons text-base">close</span>
             </button>
           )}
@@ -167,15 +174,15 @@ useEffect(() => {
           ).map((card) => (
             <div
               key={card.key}
-              className="rounded-2xl border border-slate-800 bg-slate-900 p-4"
+              className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900"
             >
               <div className="mb-2 flex items-center justify-between">
                 <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${card.color}`}>
                   <span className="material-icons text-xl text-white">{card.icon}</span>
                 </div>
-                <span className="text-2xl font-bold">{card.value}</span>
+                <span className="text-2xl font-bold text-slate-900 dark:text-white">{card.value}</span>
               </div>
-              <p className="text-sm text-slate-300">{card.label}</p>
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-400">{card.label}</p>
             </div>
           ))}
         </div>
@@ -190,8 +197,10 @@ useEffect(() => {
                 key={key}
                 type="button"
                 onClick={() => setFilter(key)}
-                className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium ${
-                  active ? 'bg-teal-600 text-white' : 'bg-slate-800 text-slate-400'
+                className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition ${
+                  active
+                    ? 'bg-teal-600 text-white shadow-xs'
+                    : 'bg-slate-200 text-slate-700 hover:bg-slate-300 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700'
                 }`}
               >
                 {label} ({count})
@@ -201,10 +210,10 @@ useEffect(() => {
         </div>
 
         {error && (
-          <div className="mb-4 flex items-center gap-3 rounded-xl bg-red-500/20 p-4 text-sm text-red-300">
+          <div className="mb-4 flex items-center gap-3 rounded-xl bg-red-500/15 p-4 text-sm text-red-700 dark:text-red-300">
             <span className="material-icons">error_outline</span>
             <span className="flex-1">{error}</span>
-            <button type="button" className="font-semibold text-red-400" onClick={loadOrders}>
+            <button type="button" className="font-semibold text-red-700 underline dark:text-red-400" onClick={loadOrders}>
               Retry
             </button>
           </div>
@@ -212,16 +221,16 @@ useEffect(() => {
 
         {loading ? (
           <div className="flex flex-col items-center py-16">
-            <span className="loading loading-spinner loading-lg text-teal-400" />
-            <p className="mt-3 text-sm text-slate-500">Loading orders...</p>
+            <span className="loading loading-spinner loading-lg text-teal-500" />
+            <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">Loading orders...</p>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="py-16 text-center text-slate-500">
-            <span className="material-icons mb-2 text-5xl text-slate-600">inventory_2</span>
+          <div className="py-16 text-center text-slate-500 dark:text-slate-400">
+            <span className="material-icons mb-2 text-5xl text-slate-400 dark:text-slate-600">inventory_2</span>
             <p>No orders found.</p>
             <Link
               to="/orders/create"
-              className="btn btn-sm mt-4 rounded-xl border-0 bg-indigo-500 text-white"
+              className="btn btn-sm mt-4 rounded-xl border-0 bg-indigo-500 text-white hover:bg-indigo-600"
             >
               Book a Wash
             </Link>
@@ -241,15 +250,15 @@ useEffect(() => {
               return (
                 <div
                   key={order.id}
-                  className="rounded-2xl border border-slate-800 bg-slate-900 p-4"
+                  className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900"
                 >
                   <div className="mb-2 flex items-center justify-between gap-2">
-                    <span className="font-mono text-sm text-slate-400">#{order.id}</span>
+                    <span className="font-mono text-sm text-slate-500 dark:text-slate-400">#{order.id}</span>
                     <span className={`badge badge-sm ${badgeClass(status)}`}>
                       {statusLabels[status]}
                     </span>
                   </div>
-                  <p className="font-semibold text-white">
+                  <p className="font-semibold text-slate-900 dark:text-white">
                     {order.vehicle
                       ? `${order.vehicle.brand || ''} ${order.vehicle.model || ''}`.trim() ||
                         order.vehicle.name ||
@@ -257,28 +266,28 @@ useEffect(() => {
                       : `Vehicle #${order.vehicleId}`}
                   </p>
                   {order.vehicle?.plateNumber && (
-                    <p className="mt-0.5 text-sm text-slate-400">{order.vehicle.plateNumber}</p>
+                    <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-400">{order.vehicle.plateNumber}</p>
                   )}
                   <div className="mt-3 flex items-end justify-between">
                     <div>
-                      <p className="text-xs text-slate-500">{formatDate(order.createdAt)}</p>
-                      <p className="text-sm text-slate-400">
+                      <p className="text-xs text-slate-500 dark:text-slate-400">{formatDate(order.createdAt)}</p>
+                      <p className="text-sm text-slate-600 dark:text-slate-400">
                         {serviceCount} service{serviceCount !== 1 ? 's' : ''}
                       </p>
                     </div>
-                    <p className="font-semibold text-teal-400">{formatRp(total)}</p>
+                    <p className="font-semibold text-teal-600 dark:text-teal-400">{formatRp(total)}</p>
                   </div>
                   <div className="mt-3 flex gap-2">
                     <Link
                       to={`/orders/${order.id}`}
-                      className="btn btn-sm flex-1 rounded-xl border-0 bg-slate-800 text-white"
+                      className="btn btn-sm flex-1 rounded-xl border border-slate-200 bg-slate-100 text-slate-800 hover:bg-slate-200 dark:border-0 dark:bg-slate-800 dark:text-white dark:hover:bg-slate-700"
                     >
                       View
                     </Link>
                     {status === 'PENDING' && (
                       <Link
                         to={`/orders/${order.id}/pay`}
-                        className="btn btn-sm flex-1 rounded-xl border-0 bg-indigo-500/20 text-indigo-300"
+                        className="btn btn-sm flex-1 rounded-xl border-0 bg-indigo-500/15 text-indigo-700 hover:bg-indigo-500/25 dark:bg-indigo-500/20 dark:text-indigo-300"
                       >
                         Pay
                       </Link>
