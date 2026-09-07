@@ -28,14 +28,14 @@ export const createService = async (req: Request, res: Response, next: NextFunct
 
 export const getAllServices = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { search, page = '1', limit = '10' } = req.query;
-    const pageNum = Number(page);
-    const limitNum = Number(limit);
-    const skip = (pageNum - 1) * limitNum;
+    const { search, page = '1', limit = '100' } = req.query // was '10'
+    const pageNum = Math.max(1, Number(page) || 1)
+    const limitNum = Math.min(200, Math.max(1, Number(limit) || 100))
+    const skip = (pageNum - 1) * limitNum
 
-    const where: Prisma.servicesWhereInput = {};
+    const where: Prisma.servicesWhereInput = {}
     if (search) {
-      where.name = { contains: search as string, mode: 'insensitive' };
+      where.name = { contains: search as string, mode: 'insensitive' }
     }
 
     const [services, total_data] = await Promise.all([
@@ -43,13 +43,11 @@ export const getAllServices = async (req: Request, res: Response, next: NextFunc
         where,
         take: limitNum,
         skip,
-        orderBy: { createdAt: 'desc' },
-        include: {
-        order_items: true,
-        },
+        orderBy: { id: 'asc' }, // stable catalog order
+        include: { order_items: true },
       }),
       prisma.services.count({ where }),
-    ]);
+    ])
 
     return res.status(200).json({
       message: 'Services retrieved successfully',
@@ -57,12 +55,12 @@ export const getAllServices = async (req: Request, res: Response, next: NextFunc
         current_page: pageNum,
         limit: limitNum,
         total_data,
-        total_pages: Math.ceil(total_data / limitNum),
+        total_pages: Math.ceil(total_data / limitNum) || 1,
       },
       data: services,
-    });
+    })
   } catch (error) {
-    next(error);
+    next(error)
   }
 };
 

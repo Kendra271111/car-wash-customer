@@ -1,172 +1,183 @@
 // src/components/pages/orders/orderPayment.tsx
-import { useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router'
-import axios from 'axios'
-import useOrders, { type Order } from '../../../hooks/useOrder'
-import { loadSnap } from '../../../libs/midtrans'
-import { api } from '../../../api/api'
+import { useEffect, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router";
+import axios from "axios";
+import useOrders, { type Order } from "../../../hooks/useOrder";
+import { loadSnap } from "../../../libs/midtrans";
+import { api } from "../../../api/api";
 
 const METHODS = [
-  { id: 'QRIS', label: 'QRIS', icon: 'qr_code_2', hint: 'Scan QR at checkout' },
-  { id: 'E-MONEY', label: 'E-Money', icon: 'account_balance_wallet', hint: 'GoPay, OVO, etc.' },
-  { id: 'TRANSFER', label: 'Transfer', icon: 'account_balance', hint: 'Bank transfer' },
-] as const
+  { id: "QRIS", label: "QRIS", icon: "qr_code_2", hint: "Scan QR at checkout" },
+  {
+    id: "E-MONEY",
+    label: "E-Money",
+    icon: "account_balance_wallet",
+    hint: "GoPay, OVO, etc.",
+  },
+  {
+    id: "TRANSFER",
+    label: "Transfer",
+    icon: "account_balance",
+    hint: "Bank transfer",
+  },
+] as const;
 
-type PaymentRow = { id?: number; status?: string; method?: string }
+type PaymentRow = { id?: number; status?: string; method?: string };
 
 type SnapWindow = Window & {
   snap?: {
     pay: (
       token: string,
       cb: {
-        onSuccess?: () => void
-        onPending?: () => void
-        onError?: () => void
-        onClose?: () => void
-      }
-    ) => void
-  }
-}
+        onSuccess?: () => void;
+        onPending?: () => void;
+        onError?: () => void;
+        onClose?: () => void;
+      },
+    ) => void;
+  };
+};
 
 const formatRp = (n: number) =>
-  new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
+  new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
     minimumFractionDigits: 0,
-  }).format(n || 0)
+  }).format(n || 0);
 
 const paymentsOf = (order: Order | null): PaymentRow[] => {
-  if (!order) return []
-  const o = order as Order & { payments?: PaymentRow[]; payements?: PaymentRow[] }
-  return o.payments ?? o.payements ?? []
-}
+  if (!order) return [];
+  const o = order as Order & {
+    payments?: PaymentRow[];
+    payements?: PaymentRow[];
+  };
+  return o.payments ?? o.payements ?? [];
+};
 
 const isPaid = (order: Order | null) =>
-  paymentsOf(order).some((p) => String(p.status).toUpperCase() === 'PAID')
+  paymentsOf(order).some((p) => String(p.status).toUpperCase() === "PAID");
 
 async function pollUntilPaid(
   check: () => Promise<boolean>,
   attempts = 12,
-  delayMs = 1500
+  delayMs = 1500,
 ) {
   for (let i = 0; i < attempts; i++) {
-    if (await check()) return true
-    await new Promise((r) => setTimeout(r, delayMs))
+    if (await check()) return true;
+    await new Promise((r) => setTimeout(r, delayMs));
   }
-  return false
+  return false;
 }
 
 const OrderPayment = () => {
-  const { id } = useParams()
-  const navigate = useNavigate()
+  const { id } = useParams();
+  const navigate = useNavigate();
 
-  const [order, setOrder] = useState<Order | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [method, setMethod] = useState<string>('QRIS')
+  const [order, setOrder] = useState<Order | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [method, setMethod] = useState<string>("QRIS");
 
   const total =
-    order?.order_items?.reduce((s, i) => s + Number(i.subtotal || 0), 0) ?? 0
-  const paid = isPaid(order)
-  const selected = METHODS.find((m) => m.id === method) ?? METHODS[0]
+    order?.order_items?.reduce((s, i) => s + Number(i.subtotal || 0), 0) ?? 0;
+  const paid = isPaid(order);
+  const selected = METHODS.find((m) => m.id === method) ?? METHODS[0];
 
   const refresh = async () => {
-    if (!id) return null
-    const data = await useOrders.fetchOrderById(id)
-    setOrder(data)
-    return data
-  }
+    if (!id) return null;
+    const data = await useOrders.fetchOrderById(id);
+    setOrder(data);
+    return data;
+  };
 
   useEffect(() => {
-    if (!id) return
-    let dead = false
-    ;(async () => {
+    if (!id) return;
+    let dead = false;
+    (async () => {
       try {
-        const data = await useOrders.fetchOrderById(id)
-        if (!dead) setOrder(data)
+        const data = await useOrders.fetchOrderById(id);
+        if (!dead) setOrder(data);
       } catch (err: unknown) {
-        if (dead) return
+        if (dead) return;
         setError(
           axios.isAxiosError(err)
-            ? err.response?.data?.message || 'Failed to load order.'
-            : 'Failed to load order.'
-        )
+            ? err.response?.data?.message || "Failed to load order."
+            : "Failed to load order.",
+        );
       } finally {
-        if (!dead) setLoading(false)
+        if (!dead) setLoading(false);
       }
-    })()
+    })();
     return () => {
-      dead = true
-    }
-  }, [id])
+      dead = true;
+    };
+  }, [id]);
 
   const confirmPaid = () =>
     pollUntilPaid(async () => {
       try {
-        const { data } = await api.get(`/payments/order/${id}`)
-        if (String(data?.data?.status || '').toUpperCase() === 'PAID') {
-          await refresh()
-          return true
+        const { data } = await api.get(`/payments/order/${id}`);
+        if (String(data?.data?.status || "").toUpperCase() === "PAID") {
+          await refresh();
+          return true;
         }
       } catch {
         /* ignore */
       }
-      return isPaid(await refresh())
-    })
+      return isPaid(await refresh());
+    });
 
   const payMidtrans = async () => {
-    if (!id || paid) return
-    setBusy(true)
-    setError(null)
+    if (!id || paid) return;
+    setBusy(true);
+    setError(null);
     try {
-      await loadSnap()
-      const { data } = await api.post('/payments/midtrans/snap', {
+      await loadSnap();
+      const { data } = await api.post("/payments/midtrans/snap", {
         orderId: Number(id),
-      })
-      const token = data?.data?.token || data?.token
-      if (!token) throw new Error('No Snap token from server')
+      });
+      const token = data?.data?.token || data?.token;
+      if (!token) throw new Error("No Snap token from server");
 
-      const snap = (window as SnapWindow).snap
-      if (!snap) throw new Error('Midtrans Snap failed to load')
+      const snap = (window as SnapWindow).snap;
+      if (!snap) throw new Error("Midtrans Snap failed to load");
 
       snap.pay(token, {
         onSuccess: () => {
           void (async () => {
-            const ok = await confirmPaid()
+            const ok = await confirmPaid();
+            setBusy(false);
+            navigate(`/orders/${id}`, { replace: true });
             if (!ok) {
-              setError(
-                'Payment sent. Waiting for Midtrans confirmation — check webhook URL if this stays unpaid.'
-              )
+              // optional: toast only; do not stay on payment page
             }
-            setBusy(false)
-            navigate(`/orders/${id}`, { replace: true })
-          })()
+          })();
         },
         onPending: () => {
           void (async () => {
-            setError('Payment pending. Status will update when confirmed.')
-            await confirmPaid()
-            setBusy(false)
-          })()
+            await confirmPaid();
+            setBusy(false);
+            navigate(`/orders/${id}`, { replace: true });
+          })();
         },
         onError: () => {
-          setError('Payment failed. Try again.')
-          setBusy(false)
+          setError("Payment failed. Try again.");
+          setBusy(false);
         },
         onClose: () => setBusy(false),
-      })
+      });
     } catch (err: unknown) {
       setError(
         axios.isAxiosError(err)
-          ? err.response?.data?.message || 'Could not open payment.'
+          ? err.response?.data?.message || "Could not open payment."
           : err instanceof Error
             ? err.message
-            : 'Could not open payment.'
-      )
-      setBusy(false)
+            : "Could not open payment.",
+      );
+      setBusy(false);
     }
-  }
+  };
 
   if (loading) {
     return (
@@ -175,26 +186,26 @@ const OrderPayment = () => {
           <span className="loading loading-spinner loading-lg text-teal-400" />
         </div>
       </Page>
-    )
+    );
   }
 
   if (!order) {
     return (
       <Page id={id}>
-        <Banner tone="error">{error || 'Order not found.'}</Banner>
+        <Banner tone="error">{error || "Order not found."}</Banner>
         <Link to="/orders" className="btn mt-4 w-full rounded-xl bg-slate-800">
           Back to orders
         </Link>
       </Page>
-    )
+    );
   }
 
   const vehicleLabel = order.vehicle
-    ? [order.vehicle.brand, order.vehicle.model].filter(Boolean).join(' ') ||
+    ? [order.vehicle.brand, order.vehicle.model].filter(Boolean).join(" ") ||
       order.vehicle.name ||
       order.vehicle.plateNumber ||
-      '—'
-    : `Vehicle #${order.vehicleId}`
+      "—"
+    : `Vehicle #${order.vehicleId}`;
 
   return (
     <Page id={id}>
@@ -218,17 +229,19 @@ const OrderPayment = () => {
             </p>
             <p className="text-sm text-slate-400">
               {vehicleLabel}
-              {order.vehicle?.plateNumber ? ` · ${order.vehicle.plateNumber}` : ''}
+              {order.vehicle?.plateNumber
+                ? ` · ${order.vehicle.plateNumber}`
+                : ""}
             </p>
           </div>
           <span
             className={`rounded-full px-3 py-1 text-xs font-bold tracking-wide ${
               paid
-                ? 'bg-emerald-500/20 text-emerald-300'
-                : 'bg-amber-500/20 text-amber-300'
+                ? "bg-emerald-500/20 text-emerald-300"
+                : "bg-amber-500/20 text-amber-300"
             }`}
           >
-            {paid ? 'PAID' : 'UNPAID'}
+            {paid ? "PAID" : "UNPAID"}
           </span>
         </div>
 
@@ -262,17 +275,23 @@ const OrderPayment = () => {
         </div>
 
         <div className="flex items-center justify-between bg-slate-950/60 px-4 py-4">
-          <span className="text-sm font-semibold text-slate-400">Total due</span>
-          <span className="text-2xl font-bold text-teal-400">{formatRp(total)}</span>
+          <span className="text-sm font-semibold text-slate-400">
+            Total due
+          </span>
+          <span className="text-2xl font-bold text-teal-400">
+            {formatRp(total)}
+          </span>
         </div>
       </section>
 
       {!paid && (
         <section className="mb-4 rounded-2xl border border-slate-800 bg-slate-900 p-4">
-          <p className="mb-3 text-sm font-semibold text-white">Payment method</p>
+          <p className="mb-3 text-sm font-semibold text-white">
+            Payment method
+          </p>
           <div className="grid grid-cols-3 gap-2">
             {METHODS.map((m) => {
-              const active = method === m.id
+              const active = method === m.id;
               return (
                 <button
                   key={m.id}
@@ -280,23 +299,23 @@ const OrderPayment = () => {
                   onClick={() => setMethod(m.id)}
                   className={`flex flex-col items-center gap-1 rounded-xl border px-2 py-3 text-center transition ${
                     active
-                      ? 'border-teal-500/60 bg-teal-500/15 text-teal-200'
-                      : 'border-slate-700 bg-slate-950 text-slate-400 hover:border-slate-600'
+                      ? "border-teal-500/60 bg-teal-500/15 text-teal-200"
+                      : "border-slate-700 bg-slate-950 text-slate-400 hover:border-slate-600"
                   }`}
                 >
                   <span className="material-icons text-2xl">{m.icon}</span>
                   <span className="text-xs font-semibold">{m.label}</span>
                 </button>
-              )
+              );
             })}
           </div>
 
           <div className="mt-4 flex gap-3 rounded-xl border border-slate-800 bg-slate-950/80 p-3">
             <span className="material-icons text-teal-400">info</span>
             <p className="text-sm leading-relaxed text-slate-300">
-              You will pay with <strong className="text-white">{selected.label}</strong> via
-              Midtrans. {selected.hint}. Status becomes paid automatically after the bank
-              confirms — no staff approval needed.
+              Pay with <strong className="text-white">{selected.label}</strong>.
+              A secure payment window will open. After you finish, we will bring
+              you back to your order. Confirmation can take a few seconds.
             </p>
           </div>
         </section>
@@ -338,8 +357,8 @@ const OrderPayment = () => {
         </Link>
       </div>
     </Page>
-  )
-}
+  );
+};
 
 function Page({ id, children }: { id?: string; children: React.ReactNode }) {
   return (
@@ -360,29 +379,29 @@ function Page({ id, children }: { id?: string; children: React.ReactNode }) {
       </header>
       <main className="mx-auto max-w-3xl px-4 py-5">{children}</main>
     </div>
-  )
+  );
 }
 
 function Banner({
   tone,
   children,
 }: {
-  tone: 'ok' | 'error'
-  children: React.ReactNode
+  tone: "ok" | "error";
+  children: React.ReactNode;
 }) {
-  const ok = tone === 'ok'
+  const ok = tone === "ok";
   return (
     <div
       className={`mb-4 flex flex-wrap items-center gap-2 rounded-xl px-3 py-2.5 text-sm ${
-        ok ? 'bg-emerald-500/15 text-emerald-300' : 'bg-red-500/15 text-red-300'
+        ok ? "bg-emerald-500/15 text-emerald-300" : "bg-red-500/15 text-red-300"
       }`}
     >
       <span className="material-icons text-lg">
-        {ok ? 'check_circle' : 'error_outline'}
+        {ok ? "check_circle" : "error_outline"}
       </span>
       <span className="min-w-0 flex-1">{children}</span>
     </div>
-  )
+  );
 }
 
-export default OrderPayment
+export default OrderPayment;
