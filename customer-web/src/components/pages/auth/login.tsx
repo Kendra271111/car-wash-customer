@@ -42,7 +42,7 @@ const CAPTIONS = [
 ]
 
 const fieldClass =
-  'w-full rounded-2xl border border-slate-300 bg-slate-100 px-4 py-3.5 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-teal-500/40 dark:border-0 dark:bg-slate-800 dark:text-white dark:placeholder:text-slate-500'
+  'w-full rounded-2xl border border-slate-300 bg-slate-100 px-4 py-3.5 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-teal-500/40 dark:border-0 focus:dark:bg-slate-800 dark:bg-slate-800 dark:text-white dark:placeholder:text-slate-500'
 
 const Login = () => {
   const navigate = useNavigate()
