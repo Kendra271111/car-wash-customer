@@ -1,234 +1,214 @@
 // src/components/pages/orders/createOrders.tsx
-import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router";
-import axios from "axios";
-import useAuth from "../../../hooks/useAuth";
-import useOrders from "../../../hooks/useOrder";
-import useVehicle, { type Vehicle } from "../../../hooks/useVehicles";
-import { api } from "../../../api/api";
-import ThemeToggle from "../../ui/themeToggle";
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate } from 'react-router'
+import axios from 'axios'
+import useAuth from '../../../hooks/useAuth'
+import useOrders from '../../../hooks/useOrder'
+import useVehicle, { type Vehicle } from '../../../hooks/useVehicles'
+import { api } from '../../../api/api'
+import ThemeToggle from '../../ui/themeToggle'
 
 type Service = {
-  id: number;
-  name: string;
-  price?: number;
-  duration?: number;
-};
+  id: number
+  name: string
+  price?: number
+  duration?: number
+}
 
 type CartItem = {
-  key: string;
-  serviceId?: number;
-  name?: string;
-  duration: number;
-  price: number;
-  qty: number;
-  subtotal: number;
-};
+  serviceId: number
+  name: string
+  duration: number
+  price: number
+  qty: number
+  subtotal: number
+}
 
 const formatRp = (n: number) =>
-  new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
+  new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
     minimumFractionDigits: 0,
-  }).format(n);
+  }).format(n)
 
 const CreateOrders = () => {
-  const navigate = useNavigate();
+  const navigate = useNavigate()
   const user = useAuth.getUser() as {
-    id?: number | string;
-    name?: string;
-  } | null;
-  const rawId = user?.id;
-  const customerId = rawId != null && rawId !== "" ? Number(rawId) : NaN;
-  const hasCustomer = Number.isFinite(customerId) && customerId > 0;
+    id?: number | string
+    name?: string
+  } | null
+  const rawId = user?.id
+  const customerId = rawId != null && rawId !== '' ? Number(rawId) : NaN
+  const hasCustomer = Number.isFinite(customerId) && customerId > 0
 
-  const [saving, setSaving] = useState(false);
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [services, setServices] = useState<Service[]>([]);
-  const [vehicleId, setVehicleId] = useState<number | null>(null);
-  const [note, setNote] = useState("");
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [saving, setSaving] = useState(false)
+  const [vehicles, setVehicles] = useState<Vehicle[]>([])
+  const [services, setServices] = useState<Service[]>([])
+  const [vehicleId, setVehicleId] = useState<number | null>(null)
+  const [note, setNote] = useState('')
+  const [selectedIds, setSelectedIds] = useState<number[]>([])
 
-  const [vehicleOpen, setVehicleOpen] = useState(false);
-  const [serviceRow, setServiceRow] = useState<number | null>(null);
-  const [q, setQ] = useState("");
-  const [booting, setBooting] = useState(() => hasCustomer);
+  const [vehicleOpen, setVehicleOpen] = useState(false)
+  const [vehicleQ, setVehicleQ] = useState('')
+  const [serviceQ, setServiceQ] = useState('')
+  const [booting, setBooting] = useState(() => hasCustomer)
   const [error, setError] = useState<string | null>(() =>
-    hasCustomer ? null : "You must be logged in as a customer.",
-  );
+    hasCustomer ? null : 'You must be logged in as a customer.'
+  )
 
   useEffect(() => {
-    if (!hasCustomer) return;
+    if (!hasCustomer) return
 
-    let cancelled = false;
-    (async () => {
+    let cancelled = false
+    ;(async () => {
       try {
         const [vList, sRes] = await Promise.all([
           useVehicle.fetchVehiclesByCustomer(customerId),
-          api.get("/services"),
-        ]);
-        if (cancelled) return;
-        setVehicles(Array.isArray(vList) ? vList : []);
-        const raw = sRes.data?.data ?? sRes.data ?? [];
-        setServices(Array.isArray(raw) ? raw : []);
+          api.get('/services', { params: { limit: 100 } }),
+        ])
+        if (cancelled) return
+        setVehicles(Array.isArray(vList) ? vList : [])
+        const raw = sRes.data?.data ?? sRes.data ?? []
+        setServices(Array.isArray(raw) ? raw : [])
       } catch (err: unknown) {
-        if (cancelled) return;
+        if (cancelled) return
         setError(
           axios.isAxiosError(err)
-            ? err.response?.data?.message || "Failed to load data."
-            : "Failed to load data.",
-        );
+            ? err.response?.data?.message || 'Failed to load data.'
+            : 'Failed to load data.'
+        )
       } finally {
-        if (!cancelled) setBooting(false);
+        if (!cancelled) setBooting(false)
       }
-    })();
+    })()
 
     return () => {
-      cancelled = true;
-    };
-  }, [hasCustomer, customerId]);
+      cancelled = true
+    }
+  }, [hasCustomer, customerId])
 
-  const selectedVehicle = vehicles.find((v) => v.id === vehicleId);
+  const selectedVehicle = vehicles.find((v) => v.id === vehicleId)
 
   const vehicleOptions = useMemo(() => {
-    const s = q.trim().toLowerCase();
-    if (!vehicleOpen || !s) return vehicles;
+    const s = vehicleQ.trim().toLowerCase()
+    if (!s) return vehicles
     return vehicles.filter((v) =>
       [v.name, v.plateNumber, v.brand, v.model]
         .filter(Boolean)
-        .some((x) => String(x).toLowerCase().includes(s)),
-    );
-  }, [vehicles, q, vehicleOpen]);
+        .some((x) => String(x).toLowerCase().includes(s))
+    )
+  }, [vehicles, vehicleQ])
 
-  const serviceOptions = useMemo(() => {
-    const s = q.trim().toLowerCase();
-    if (serviceRow == null || !s) return services;
+  /** Services list for checklist (search + hide nothing, but disable if already selected) */
+  const filteredServices = useMemo(() => {
+    const s = serviceQ.trim().toLowerCase()
+    if (!s) return services
     return services.filter((x) =>
-      String(x.name || "")
+      String(x.name || '')
         .toLowerCase()
-        .includes(s),
-    );
-  }, [services, q, serviceRow]);
+        .includes(s)
+    )
+  }, [services, serviceQ])
 
-  const closeMenus = () => {
-    setVehicleOpen(false);
-    setServiceRow(null);
-    setQ("");
-  };
+  const cart: CartItem[] = useMemo(() => {
+    return selectedIds
+      .map((id) => {
+        const svc = services.find((s) => s.id === id)
+        if (!svc) return null
+        const price = Number(svc.price || 0)
+        return {
+          serviceId: svc.id,
+          name: svc.name,
+          duration: Number(svc.duration || 0),
+          price,
+          qty: 1,
+          subtotal: price,
+        }
+      })
+      .filter(Boolean) as CartItem[]
+  }, [selectedIds, services])
 
-  const addEmptyService = () => {
-    setCart((prev) => [
-      ...prev,
-      {
-        key: `${Date.now()}-${prev.length}`,
-        duration: 0,
-        price: 0,
-        qty: 1,
-        subtotal: 0,
-      },
-    ]);
-  };
+  const toggleService = (id: number) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    )
+  }
 
-  const chooseService = (row: number, svc: Service) => {
-    const price = Number(svc.price || 0);
-    setCart((prev) =>
-      prev.map((item, i) =>
-        i === row
-          ? {
-              ...item,
-              serviceId: svc.id,
-              name: svc.name,
-              duration: Number(svc.duration || 0),
-              price,
-              qty: 1,
-              subtotal: price,
-            }
-          : item,
-      ),
-    );
-    closeMenus();
-  };
-
-  const removeRow = (row: number) => {
-    setCart((prev) => prev.filter((_, i) => i !== row));
-  };
-
-  const filled = cart.filter((c) => c.serviceId != null);
   const totals = {
-    qty: filled.reduce((s, c) => s + c.qty, 0),
-    mins: filled.reduce((s, c) => s + c.duration * c.qty, 0),
-    amount: filled.reduce((s, c) => s + c.subtotal, 0),
-  };
+    qty: cart.reduce((s, c) => s + c.qty, 0),
+    mins: cart.reduce((s, c) => s + c.duration * c.qty, 0),
+    amount: cart.reduce((s, c) => s + c.subtotal, 0),
+  }
 
   const submit = async () => {
-    setError(null);
+    setError(null)
     if (!hasCustomer) {
-      setError("You must be logged in.");
-      return;
+      setError('You must be logged in.')
+      return
     }
     if (vehicleId == null) {
-      setError("Select your vehicle.");
-      return;
+      setError('Select your vehicle.')
+      return
     }
-    if (filled.length === 0) {
-      setError("Add at least one service.");
-      return;
+    if (cart.length === 0) {
+      setError('Select at least one service.')
+      return
     }
 
-    setSaving(true);
+    setSaving(true)
     try {
       await useOrders.createOrder({
         vehicleId,
         customerId,
         staffId: null,
-        status: "PENDING",
+        status: 'PENDING',
         note: note.trim() || undefined,
-        items: filled.map((c) => ({
-          serviceId: Number(c.serviceId),
+        items: cart.map((c) => ({
+          serviceId: c.serviceId,
           duration: c.duration,
           price: c.price,
           qty: c.qty,
           subtotal: c.subtotal,
           amount: c.subtotal,
         })),
-      });
-      navigate("/orders", { replace: true });
+      })
+      navigate('/orders', { replace: true })
     } catch (err: unknown) {
       setError(
         axios.isAxiosError(err)
-          ? err.response?.data?.message || "Failed to create order."
-          : "Failed to create order.",
-      );
+          ? err.response?.data?.message || 'Failed to create order.'
+          : 'Failed to create order.'
+      )
     } finally {
-      setSaving(false);
+      setSaving(false)
     }
-  };
+  }
 
   if (booting) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
         <span className="loading loading-spinner loading-lg text-teal-500" />
       </div>
-    );
+    )
   }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 transition-colors dark:bg-slate-950 dark:text-slate-100">
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 text-slate-900 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 dark:text-slate-100">
+      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95">
         <div className="mx-auto flex h-14 max-w-3xl items-center justify-between gap-2 px-4">
           <div className="flex items-center gap-2">
             <Link
               to="/orders"
-              className="btn btn-ghost btn-sm btn-circle text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+              className="btn btn-ghost btn-sm btn-circle text-slate-600 dark:text-slate-300"
             >
               <span className="material-icons">arrow_back</span>
             </Link>
             <div>
               <h1 className="text-lg font-bold">Book a wash</h1>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Choose vehicle & services</p>
+              <p className="text-xs text-slate-500">Choose vehicle & services</p>
             </div>
           </div>
-          <ThemeToggle className="text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800" />
+          <ThemeToggle className="text-slate-600 dark:text-slate-300" />
         </div>
       </header>
 
@@ -240,26 +220,23 @@ const CreateOrders = () => {
           </div>
         )}
 
-        {/* Customer (read-only) */}
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
-          <p className="mb-1 text-xs text-slate-500 dark:text-slate-400">Booking as</p>
-          <p className="font-medium text-slate-900 dark:text-white">
-            {user?.name || (hasCustomer ? `Customer #${customerId}` : "—")}
+          <p className="mb-1 text-xs text-slate-500">Booking as</p>
+          <p className="font-medium">
+            {user?.name || (hasCustomer ? `Customer #${customerId}` : '—')}
           </p>
         </section>
 
         {/* Vehicle */}
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
-          <p className="mb-2 text-sm font-semibold text-slate-900 dark:text-white">Your vehicle</p>
+          <p className="mb-2 text-sm font-semibold">Your vehicle</p>
 
           {vehicles.length === 0 ? (
             <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-center dark:border-slate-700 dark:bg-slate-950">
-              <p className="text-sm text-slate-500 dark:text-slate-400">
-                No vehicles on your account.
-              </p>
+              <p className="text-sm text-slate-500">No vehicles on your account.</p>
               <Link
                 to="/vehicles/create"
-                className="btn btn-sm mt-3 rounded-xl border-0 bg-teal-600 text-white hover:bg-teal-500"
+                className="btn btn-sm mt-3 rounded-xl border-0 bg-teal-600 text-white"
               >
                 Add vehicle
               </Link>
@@ -268,41 +245,42 @@ const CreateOrders = () => {
             <>
               <button
                 type="button"
-                className="flex w-full items-center justify-between rounded-xl border border-slate-300 bg-white px-4 py-3 text-left shadow-xs transition hover:border-slate-400 dark:border-slate-700 dark:bg-slate-950 dark:hover:border-slate-600"
+                className="flex w-full items-center justify-between rounded-xl border border-slate-300 bg-white px-4 py-3 text-left dark:border-slate-700 dark:bg-slate-950"
                 onClick={() => {
-                  setServiceRow(null);
-                  setQ("");
-                  setVehicleOpen((o) => !o);
+                  setVehicleOpen((o) => !o)
+                  setVehicleQ('')
                 }}
               >
                 <span
-                  className={selectedVehicle ? "font-medium text-slate-900 dark:text-white" : "text-slate-400 dark:text-slate-500"}
+                  className={
+                    selectedVehicle
+                      ? 'font-medium'
+                      : 'text-slate-400 dark:text-slate-500'
+                  }
                 >
                   {selectedVehicle
-                    ? `${selectedVehicle.plateNumber || ""} · ${
+                    ? `${selectedVehicle.plateNumber || ''} · ${
                         selectedVehicle.name ||
                         [selectedVehicle.brand, selectedVehicle.model]
                           .filter(Boolean)
-                          .join(" ")
+                          .join(' ')
                       }`
-                    : "Select vehicle"}
+                    : 'Select vehicle'}
                 </span>
-                <span className="material-icons text-slate-400 dark:text-slate-500">
-                  {vehicleOpen ? "expand_less" : "expand_more"}
+                <span className="material-icons text-slate-400">
+                  {vehicleOpen ? 'expand_less' : 'expand_more'}
                 </span>
               </button>
 
               {vehicleOpen && (
                 <div className="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-950">
                   <div className="flex items-center gap-2 border-b border-slate-100 px-3 dark:border-slate-800">
-                    <span className="material-icons text-slate-400 dark:text-slate-500">
-                      search
-                    </span>
+                    <span className="material-icons text-slate-400">search</span>
                     <input
-                      className="input input-ghost h-10 w-full border-0 bg-transparent text-slate-900 placeholder:text-slate-400 focus:outline-none dark:text-white dark:placeholder:text-slate-500"
+                      className="input input-ghost h-10 w-full border-0 bg-transparent focus:outline-none"
                       placeholder="Search plate or name…"
-                      value={q}
-                      onChange={(e) => setQ(e.target.value)}
+                      value={vehicleQ}
+                      onChange={(e) => setVehicleQ(e.target.value)}
                       autoFocus
                     />
                   </div>
@@ -311,25 +289,24 @@ const CreateOrders = () => {
                       <button
                         key={v.id}
                         type="button"
-                        className="block w-full border-b border-slate-100 px-4 py-3 text-left text-sm transition hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900"
+                        className="block w-full border-b border-slate-100 px-4 py-3 text-left text-sm hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900"
                         onClick={() => {
-                          setVehicleId(v.id);
-                          closeMenus();
+                          setVehicleId(v.id)
+                          setVehicleOpen(false)
+                          setVehicleQ('')
                         }}
                       >
-                        <span className="font-medium text-slate-900 dark:text-white">{v.plateNumber}</span>
-                        <span className="text-slate-500 dark:text-slate-400">
-                          {" "}
-                          ·{" "}
+                        <span className="font-medium">{v.plateNumber}</span>
+                        <span className="text-slate-500">
+                          {' '}
+                          ·{' '}
                           {v.name ||
-                            [v.brand, v.model].filter(Boolean).join(" ")}
+                            [v.brand, v.model].filter(Boolean).join(' ')}
                         </span>
                       </button>
                     ))}
                     {vehicleOptions.length === 0 && (
-                      <p className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
-                        No match
-                      </p>
+                      <p className="px-4 py-3 text-sm text-slate-500">No match</p>
                     )}
                   </div>
                 </div>
@@ -338,116 +315,114 @@ const CreateOrders = () => {
           )}
         </section>
 
-        {/* Services */}
+        {/* Services — 2-col checklist */}
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
-          <div className="mb-3 flex items-center justify-between">
-            <p className="text-sm font-semibold text-slate-900 dark:text-white">Services</p>
-            <button
-              type="button"
-              className="btn btn-sm rounded-xl border-0 bg-teal-600 text-white hover:bg-teal-500"
-              onClick={addEmptyService}
-            >
-              <span className="material-icons text-base">add</span>
-              Add service
-            </button>
-          </div>
-
-          {cart.length === 0 && (
-            <p className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">
-              Tap “Add service”, then pick Basic Wash, Wax, etc.
-            </p>
-          )}
-
-          <div className="space-y-2">
-            {cart.map((item, index) => (
-              <div
-                key={item.key}
-                className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950"
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-semibold">Services</p>
+              <p className="text-xs text-slate-500">
+                Tap to select · each service once
+              </p>
+            </div>
+            {selectedIds.length > 0 && (
+              <button
+                type="button"
+                className="text-xs font-semibold text-slate-500 hover:text-red-500"
+                onClick={() => setSelectedIds([])}
               >
-                {!item.serviceId ? (
-                  <>
-                    <button
-                      type="button"
-                      className="flex w-full items-center justify-between rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-left text-sm text-slate-500 shadow-xs hover:border-slate-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-400 dark:hover:border-slate-600"
-                      onClick={() => {
-                        setVehicleOpen(false);
-                        setQ("");
-                        setServiceRow((r) => (r === index ? null : index));
-                      }}
-                    >
-                      Choose a service…
-                      <span className="material-icons text-slate-400 dark:text-slate-500">
-                        expand_more
-                      </span>
-                    </button>
-                    {serviceRow === index && (
-                      <div className="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-950">
-                        <div className="flex items-center gap-2 border-b border-slate-100 px-3 dark:border-slate-800">
-                          <span className="material-icons text-slate-400 dark:text-slate-500">
-                            search
-                          </span>
-                          <input
-                            className="input input-ghost h-10 w-full border-0 bg-transparent text-slate-900 placeholder:text-slate-400 focus:outline-none dark:text-white dark:placeholder:text-slate-500"
-                            placeholder="Search services…"
-                            value={q}
-                            onChange={(e) => setQ(e.target.value)}
-                            autoFocus
-                          />
-                        </div>
-                        <div className="max-h-48 overflow-y-auto">
-                          {serviceOptions.map((s) => (
-                            <button
-                              key={s.id}
-                              type="button"
-                              className="block w-full border-b border-slate-100 px-4 py-3 text-left text-sm transition hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900"
-                              onClick={() => chooseService(index, s)}
-                            >
-                              <span className="font-medium text-slate-900 dark:text-white">{s.name}</span>
-                              <span className="text-slate-500 dark:text-slate-400">
-                                {" "}
-                                · {formatRp(Number(s.price || 0))}
-                                {s.duration ? ` · ${s.duration} min` : ""}
-                              </span>
-                            </button>
-                          ))}
-                          {serviceOptions.length === 0 && (
-                            <p className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
-                              No match
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-medium text-slate-900 dark:text-white">{item.name}</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">
-                        {item.duration} min · {formatRp(item.price)}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <p className="font-semibold text-teal-600 dark:text-teal-400">
-                        {formatRp(item.subtotal)}
-                      </p>
-                      <button type="button" onClick={() => removeRow(index)}>
-                        <span className="material-icons text-red-500 hover:text-red-600 dark:text-red-400">
-                          delete
-                        </span>
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
+                Clear all
+              </button>
+            )}
           </div>
+
+          <div className="mb-3 flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 dark:border-slate-700 dark:bg-slate-950">
+            <span className="material-icons text-slate-400">search</span>
+            <input
+              className="input input-ghost h-10 w-full border-0 bg-transparent focus:outline-none"
+              placeholder="Search services…"
+              value={serviceQ}
+              onChange={(e) => setServiceQ(e.target.value)}
+            />
+            {serviceQ && (
+              <button
+                type="button"
+                className="btn btn-ghost btn-xs"
+                onClick={() => setServiceQ('')}
+              >
+                <span className="material-icons text-base">close</span>
+              </button>
+            )}
+          </div>
+
+          {/* Scrollable 2-column grid */}
+          <div className="max-h-64 overflow-y-auto overscroll-contain rounded-xl border border-slate-200 dark:border-slate-800 sm:max-h-72">
+            {filteredServices.length === 0 ? (
+              <p className="px-4 py-8 text-center text-sm text-slate-500">
+                No services found
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 gap-0 sm:grid-cols-2">
+                {filteredServices.map((svc) => {
+                  const checked = selectedIds.includes(svc.id)
+                  return (
+                    <label
+                      key={svc.id}
+                      className={`flex cursor-pointer items-start gap-3 border-b border-slate-100 px-3 py-3 transition sm:border-r dark:border-slate-800 ${
+                        checked
+                          ? 'bg-teal-500/10'
+                          : 'hover:bg-slate-50 dark:hover:bg-slate-950'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        className="checkbox checkbox-sm checkbox-primary mt-0.5"
+                        checked={checked}
+                        onChange={() => toggleService(svc.id)}
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-medium leading-snug">
+                          {svc.name}
+                        </span>
+                        <span className="mt-0.5 block text-xs text-slate-500">
+                          {formatRp(Number(svc.price || 0))}
+                          {svc.duration ? ` · ${svc.duration} min` : ''}
+                        </span>
+                      </span>
+                      {checked && (
+                        <span className="material-icons text-base text-teal-600">
+                          check_circle
+                        </span>
+                      )}
+                    </label>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Selected summary chips */}
+          {cart.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {cart.map((c) => (
+                <button
+                  key={c.serviceId}
+                  type="button"
+                  onClick={() => toggleService(c.serviceId)}
+                  className="inline-flex items-center gap-1 rounded-full border border-teal-500/30 bg-teal-500/10 px-3 py-1 text-xs font-medium text-teal-800 dark:text-teal-200"
+                  title="Remove"
+                >
+                  {c.name}
+                  <span className="material-icons text-sm">close</span>
+                </button>
+              ))}
+            </div>
+          )}
 
           <label className="mt-4 block text-sm font-medium text-slate-700 dark:text-slate-300">
             Note (optional)
           </label>
           <textarea
-            className="textarea textarea-bordered mt-1 w-full rounded-xl border-slate-300 bg-white text-slate-900 focus:border-teal-500 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            className="textarea textarea-bordered mt-1 w-full rounded-xl border-slate-300 bg-white focus:border-teal-500 focus:outline-none dark:border-slate-700 dark:bg-slate-950"
             rows={2}
             value={note}
             onChange={(e) => setNote(e.target.value)}
@@ -456,15 +431,15 @@ const CreateOrders = () => {
 
           <div className="mt-4 flex justify-between border-t border-slate-200 pt-4 text-center dark:border-slate-800">
             <div>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Items</p>
-              <p className="text-lg font-bold text-slate-900 dark:text-white">{totals.qty}</p>
+              <p className="text-xs text-slate-500">Items</p>
+              <p className="text-lg font-bold">{totals.qty}</p>
             </div>
             <div>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Duration</p>
-              <p className="text-lg font-bold text-slate-900 dark:text-white">{totals.mins} min</p>
+              <p className="text-xs text-slate-500">Duration</p>
+              <p className="text-lg font-bold">{totals.mins} min</p>
             </div>
             <div>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Total</p>
+              <p className="text-xs text-slate-500">Total</p>
               <p className="text-lg font-bold text-teal-600 dark:text-teal-400">
                 {formatRp(totals.amount)}
               </p>
@@ -475,7 +450,7 @@ const CreateOrders = () => {
         <div className="flex gap-3 pb-6">
           <Link
             to="/orders"
-            className="btn flex-1 rounded-xl border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-transparent dark:text-slate-300 dark:hover:bg-slate-800"
+            className="btn flex-1 rounded-xl border border-slate-300 bg-white text-slate-700 dark:border-slate-700 dark:bg-transparent dark:text-slate-300"
           >
             Cancel
           </Link>
@@ -488,13 +463,13 @@ const CreateOrders = () => {
             {saving ? (
               <span className="loading loading-spinner loading-sm" />
             ) : (
-              "Create order"
+              'Create order'
             )}
           </button>
         </div>
       </main>
     </div>
-  );
-};
+  )
+}
 
-export default CreateOrders;
+export default CreateOrders

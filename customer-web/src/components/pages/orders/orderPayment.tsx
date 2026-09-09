@@ -10,12 +10,6 @@ import ThemeToggle from "../../ui/themeToggle";
 const METHODS = [
   { id: "QRIS", label: "QRIS", icon: "qr_code_2", hint: "Scan QR at checkout" },
   {
-    id: "E-MONEY",
-    label: "E-Money",
-    icon: "account_balance_wallet",
-    hint: "GoPay, OVO, etc.",
-  },
-  {
     id: "TRANSFER",
     label: "Transfer",
     icon: "account_balance",
@@ -290,7 +284,7 @@ const OrderPayment = () => {
           <p className="mb-3 text-sm font-semibold text-slate-900 dark:text-white">
             Payment method
           </p>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2 w-full">
             {METHODS.map((m) => {
               const active = method === m.id;
               return (

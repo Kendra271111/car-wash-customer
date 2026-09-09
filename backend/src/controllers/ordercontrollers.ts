@@ -100,7 +100,24 @@ export const createOrder = async (
         return res.status(404).json({ message: `Staff with ID ${sId} not found.` })
       }
     }
-
+    
+    const open = await prisma.orders.findFirst({
+      where: {
+        customerId: cId,
+        NOT: {
+          OR: [
+            { status: 'CANCELLED' },
+            { status: 'COMPLETED' /* + paid check if you store it */ },
+          ],
+        },
+      },
+    })
+    if (open) {
+      return res.status(409).json({
+        message: 'You already have an active order. Finish it before booking again.',
+      })
+    }
+    
     const nextStatus = status || 'PENDING'
     // Bay cannot start without a person
     if (nextStatus === 'PROCESSING' && sId == null) {
